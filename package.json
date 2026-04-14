@@ -1,0 +1,16 @@
+{
+  "name": "ladyfitness-bremgarten-ch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Statische Website fuer Lady Fitness Bremgarten",
+  "scripts": {
+    "dev": "http-server . -p 3000 -c-1",
+    "dev:booking": "npm --prefix studio-booking run dev",
+    "setup:booking-login": "npm --prefix studio-booking run setup:login",
+    "start": "http-server . -p 3000 -c-1",
+    "pack": "node scripts/pack-upload.js"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

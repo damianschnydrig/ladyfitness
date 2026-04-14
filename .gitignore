@@ -1,0 +1,25 @@
+# Dependencies (Root: z. B. http-server; niemals committen)
+/node_modules/
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Umgebung & Geheimnisse (nie committen) — Ausnahme: .env.example-Vorlagen
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Deploy-Artefakte (nicht versionieren)
+*.zip

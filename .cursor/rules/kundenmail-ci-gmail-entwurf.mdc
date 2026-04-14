@@ -1,0 +1,15 @@
+---
+description: Kundenmails immer WEBtotal-CI + Gmail-Entwurf (kein reines Fliesstext-Beispiel ohne Automation)
+alwaysApply: true
+---
+
+# E-Mail an Kunden / Kontakte
+
+Wenn der Nutzer eine **E-Mail schreiben**, **Mail machen**, **Entwurf**, **an XY mailen** o.ä. verlangt (nicht nur beim exakten Wortlaut „Mail versenden“):
+
+1. **Immer** die globale **WEBtotal-CI** nutzen und einen **Gmail-Entwurf** anlegen — **nicht** nur einen Text im Chat liefern, ohne den Draft zu erzeugen.
+2. **Pfad / Doku:** `C:\Users\damia\WEBtotal-Automation\gmail-draft\`, CI: `BRAND-CI.md`, Skript: `create-ci-draft.ps1`.
+3. **Standard:** Aufruf per PowerShell, **ohne** `-Send` → **Entwurfsordner** Gmail. **Betreff:** `-SubjectPath` (UTF-8); Python **`EmailMessage`/SMTP-Policy** erzeugt RFC-2047 (stdlib, kein manuelles Header-Rewrite). **Fliesstext:** **`-MainTextFile`** usw. (UTF-8) — keine langen deutschen Here-Strings in `.ps1` ohne BOM.
+4. **Ausnahme:** Nur wenn der Nutzer **ausdrücklich** nur Text im Chat will **oder** eine andere Form (z. B. reines Du ohne CI) verlangt — dann erst nachfragen bzw. wie gewünscht.
+
+Nach dem Lauf kurz **JSON-Status** und dass der Entwurf in Gmail liegt bestätigen. Bei **Umlauten im Betreff** und offener Qualität: optional **IDE-Browser** (`#drafts`, Snapshot) oder Nutzer-Abnahme — Playbook in `gmail-draft/BETREFF-ENCODING.md`. Nicht „Gmail-sicher“ behaupten ohne UI-Check.

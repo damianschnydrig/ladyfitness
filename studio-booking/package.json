@@ -1,0 +1,54 @@
+{
+  "name": "studio-booking",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack -p 3001",
+    "dev:classic": "next dev -p 3001",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:list-admins": "tsx --env-file=.env scripts/list-admins.ts",
+    "db:verify-admin": "tsx --env-file=.env scripts/verify-admin.ts",
+    "setup:login": "prisma migrate deploy && prisma db seed && tsx --env-file=.env scripts/verify-admin.ts",
+    "preflight": "powershell -ExecutionPolicy Bypass -File ./scripts/preflight-deploy.ps1",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.3.1",
+    "@react-email/components": "^1.0.10",
+    "@react-email/render": "^2.0.4",
+    "bcryptjs": "^3.0.3",
+    "luxon": "^3.7.2",
+    "next": "15.3.3",
+    "next-auth": "^5.0.0-beta.25",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-email": "^5.2.10",
+    "resend": "^6.9.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.3",
+    "postcss": "^8",
+    "prisma": "6.3.1",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}
