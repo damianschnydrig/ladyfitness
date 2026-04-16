@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type BookingActionResult,
   createBooking,
@@ -19,7 +19,12 @@ type BookingType = "PROBETRAINING" | "PERSONAL_TRAINING";
 
 export function BookingWizard() {
   const router = useRouter();
-  const [type, setType] = useState<BookingType | null>(null);
+  const searchParams = useSearchParams();
+  const [type, setType] = useState<BookingType | null>(() => {
+    const t = searchParams.get("type");
+    if (t === "PROBETRAINING" || t === "PERSONAL_TRAINING") return t as BookingType;
+    return null;
+  });
   const [slots, setSlots] = useState<SlotDto[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotId, setSlotId] = useState<string | null>(null);

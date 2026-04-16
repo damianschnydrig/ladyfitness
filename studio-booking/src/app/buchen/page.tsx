@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BookingWizard } from "@/components/BookingWizard";
 import { PublicShell } from "@/components/PublicShell";
 
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function BuchenPage() {
   return (
     <PublicShell>
-      <BookingWizard />
+      <Suspense fallback={null}>
+        <BookingWizard />
+      </Suspense>
     </PublicShell>
   );
 }

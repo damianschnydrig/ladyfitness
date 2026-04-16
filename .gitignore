@@ -17,6 +17,9 @@ Desktop.ini
 .env.local
 .env.*.local
 
+# Lokale Zugangsdaten (nie committen)
+ZUGANGSDATEN.md
+
 # Logs
 *.log
 npm-debug.log*
