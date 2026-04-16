@@ -11,7 +11,8 @@
     "dev:booking": "npm --prefix studio-booking run dev",
     "setup:booking-login": "npm --prefix studio-booking run setup:login",
     "start": "http-server . -p 3000 -c-1",
-    "pack": "node scripts/pack-upload.js"
+    "pack": "node scripts/pack-upload.js",
+    "pack:booking": "node scripts/pack-studio-booking-deploy.js"
   },
   "devDependencies": {
     "http-server": "^14.1.1"

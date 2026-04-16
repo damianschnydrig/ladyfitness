@@ -1,0 +1,51 @@
+================================================================================
+Lady Fitness — Buchungs-App (studio-booking) — Server nach dem Entpacken
+================================================================================
+
+Dieses ZIP enthält den Quellcode OHNE node_modules und OHNE .next (werden auf
+dem Server neu erzeugt). Die lokale .env ist NICHT enthalten — Sie legen .env
+auf dem Server neu an.
+
+--------------------------------------------------------------------------------
+1) Entpacken
+--------------------------------------------------------------------------------
+Alle Dateien in den Document Root der Subdomain buchung legen, z. B.:
+  buchung.ladyfitness-bremgarten.ch → httpdocs
+
+Nach dem Entpacken muss package.json DIREKT in diesem Ordner liegen.
+
+--------------------------------------------------------------------------------
+2) Datei .env anlegen
+--------------------------------------------------------------------------------
+Kopieren Sie .env.example nach .env und tragen Sie die echten Werte ein:
+
+  DATABASE_URL     = MySQL-Verbindung (Passwort mit Sonderzeichen URL-kodieren)
+  AUTH_SECRET      = z. B. openssl rand -base64 32
+  NEXT_PUBLIC_APP_URL = https://buchung.ladyfitness-bremgarten.ch
+  RESEND_API_KEY, MAIL_FROM, OPERATOR_EMAIL
+  ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD (nur für ersten Admin)
+
+--------------------------------------------------------------------------------
+3) Per SSH im App-Ordner (einmal)
+--------------------------------------------------------------------------------
+  npm ci
+  npm run build
+  npx prisma migrate deploy
+  npm run db:seed
+
+db:seed nur beim ersten Mal (legt Admin an).
+
+--------------------------------------------------------------------------------
+4) App dauerhaft starten
+--------------------------------------------------------------------------------
+  npm start
+
+Oder in Plesk „Node.js“ den Startbefehl eintragen (Port wie vorgegeben).
+
+--------------------------------------------------------------------------------
+5) Test
+--------------------------------------------------------------------------------
+  https://buchung.ladyfitness-bremgarten.ch/api/health
+  https://buchung.ladyfitness-bremgarten.ch/buchen
+
+================================================================================
