@@ -40,7 +40,14 @@ db:seed nur beim ersten Mal (legt Admin an).
 --------------------------------------------------------------------------------
   npm start
 
-Oder in Plesk „Node.js“ den Startbefehl eintragen (Port wie vorgegeben).
+Plesk „Anwendungsstartdatei“:  server.js  (nicht app.js — die gibt es bei Next.js nicht)
+Anwendungsstamm = Ordner mit package.json (wie bei dir).
+
+--------------------------------------------------------------------------------
+4b) Plesk-Hinweis Dokumentenstamm
+--------------------------------------------------------------------------------
+Optional laut Plesk: Dokumentenstamm auf Unterordner „public“ setzen — nur wenn die
+Oberfläche das anbietet und die Seite danach noch läuft; sonst erst server.js testen.
 
 --------------------------------------------------------------------------------
 5) Test
