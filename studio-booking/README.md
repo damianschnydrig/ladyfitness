@@ -1,8 +1,10 @@
 # Lady Fitness Bremgarten — Buchung & Kontakt (Next.js)
 
-Produktionsreifes System für **Probetraining**, **Personal Training** und **Kontaktanfragen** inkl. **Admin-Dashboard**, **PostgreSQL/Prisma**, **Auth.js (Credentials)** und **E-Mail über Resend**.
+> **Gesamtüberblick (Repo, Deployment, Datenbank):** siehe [`../README.md`](../README.md) im Projektroot.
 
-Die statische Marketing-Site bleibt unter `../` erhalten; diese App läuft als **eigenständige Next.js-Anwendung** (eigene URL oder Subdomain empfohlen).
+Produktionsreifes System für **Probetraining**, **Personal Training** und **Kontaktanfragen** inkl. **Admin-Dashboard**, **MySQL/MariaDB + Prisma**, **Auth.js (Credentials)** und **E-Mail über Resend**.
+
+Die Marketing-Seiten liegen unter `../` (statisch); diese App ist das **Backend inkl. Admin-Oberfläche** und läuft unter einer **eigenen URL** (Subdomain, z. B. `buchung.…`).
 
 ### Wichtig: Zwei Server, zwei Ports
 

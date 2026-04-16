@@ -2,9 +2,11 @@
   "name": "ladyfitness-bremgarten-ch",
   "version": "1.0.0",
   "private": true,
-  "description": "Statische Website fuer Lady Fitness Bremgarten",
+  "description": "Lady Fitness: Marketing-Website + Buchungs-App (studio-booking), ein Repo",
   "scripts": {
     "build": "node scripts/build-dist.js",
+    "build:booking": "npm --prefix studio-booking run build",
+    "build:all": "npm run build && npm run build:booking",
     "dev": "http-server . -p 3000 -c-1",
     "dev:booking": "npm --prefix studio-booking run dev",
     "setup:booking-login": "npm --prefix studio-booking run setup:login",
