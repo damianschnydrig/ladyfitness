@@ -70,28 +70,13 @@ Repo2web macht nach `npm run build` einen Ordner **`dist/`** mit der statischen 
 
 ---
 
-## Datenbank — kurz und klar
+## Live schalten — die eine Anleitung
 
-- **Technologie:** MariaDB oder MySQL (Prisma).
-- **Wo:** Auf dem Hoster (z. B. Plesk: Datenbank anlegen). **Nicht** in Git, **nicht** in Repo2web.
-- **Verbindung:** In `studio-booking/.env` als `DATABASE_URL=mysql://…` (nur auf dem Server oder lokal).
-- **Nach dem ersten Deploy:** auf dem Server `npx prisma migrate deploy` und ggf. `npm run db:seed` für den Admin-Account.
-
-Ohne laufende Datenbank und ohne `.env` auf dem Server startet die Buchungs-App nicht — die **Website** (HTML) funktioniert davon unabhängig.
-
----
-
-## Deployment in der Praxis (zusammengefasst)
-
-1. **Immer:** Code mit `git push` auf GitHub bringen (ganzes Repo).
-2. **Website (Hauptdomain):** Repo2web mit `npm run build` → `dist/` hochladen **oder** `npm run pack` → ZIP in Plesk entpacken.
-3. **Buchung (`buchung.ladyfitness-bremgarten.ch`):** Auf einem Server mit **Node.js** den Ordner `studio-booking/` auschecken, `.env` setzen, `npm ci`, `npm run build`, `npx prisma migrate deploy`, App starten (Details: `DEPLOY.md`).
-
-Wenn der Hoster **kein Node** hat: Buchungs-App auf einem Node-fähigen Dienst betreiben, Subdomain per DNS dorthin — **ein** Produkt, **zwei Hosting-Schichten** (Webspace + Node).
+**Alles Schritt für Schritt (ZIP, Plesk, Datenbank, Subdomain):** siehe **`DEPLOY.md`**.  
+Dort ist der **einfachste Weg** beschrieben: erst Website, dann Buchung inkl. DB.
 
 ---
 
 ## Weitere Doku
 
-- **`DEPLOY.md`** — Checkliste Server (Schrittfolge).
-- **`studio-booking/README.md`** — technische Details zur Next.js-App.
+- **`studio-booking/README.md`** — technische Details zur Next.js-App (Entwicklung).
