@@ -26,3 +26,4 @@ npm-debug.log*
 
 # Deploy-Artefakte (nicht versionieren)
 *.zip
+/dist/

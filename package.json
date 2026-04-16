@@ -4,7 +4,7 @@
   "private": true,
   "description": "Statische Website fuer Lady Fitness Bremgarten",
   "scripts": {
-    "build": "echo Static site - no build step required",
+    "build": "node scripts/build-dist.js",
     "dev": "http-server . -p 3000 -c-1",
     "dev:booking": "npm --prefix studio-booking run dev",
     "setup:booking-login": "npm --prefix studio-booking run setup:login",
