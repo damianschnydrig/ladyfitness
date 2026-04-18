@@ -49,10 +49,7 @@ try {
     );
   }
   const sizeMb = (fs.statSync(zipPath).size / (1024 * 1024)).toFixed(2);
-  console.log("\nOK: ZIP bereit:", zipPath);
-  console.log("  Groesse:", sizeMb, "MB");
-  console.log("  Subdomain httpdocs: ZIP hochladen -> entpacken -> .env anlegen -> npm ci -> npm run build -> ...");
-  console.log("  Siehe studio-booking/DEPLOY-LESE-MICH.txt im ZIP.");
+  console.log("\nOK:", zipPath, `(${sizeMb} MB)`);
 } catch (e) {
   console.error("Packen fehlgeschlagen.", e.message);
   process.exit(1);

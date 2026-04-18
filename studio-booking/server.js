@@ -1,7 +1,4 @@
-/**
- * Startdatei für Plesk „Anwendungsstartdatei“ (statt app.js).
- * Liest PORT aus der Umgebung (setzt Plesk automatisch).
- */
+/** Production: `node server.js` — `PORT` aus der Umgebung (Fallback 3001). */
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");

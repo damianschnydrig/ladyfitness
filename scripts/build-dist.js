@@ -78,8 +78,7 @@ function main() {
     fs.rmSync(envInRoot, { force: true });
   }
 
-  console.log("OK: dist/ = Next.js standalone (komplett inkl. node_modules):", dist);
-  console.log("    Plesk: App-Stamm = Unterordner studio-booking, Startdatei = server.js");
+  console.log("OK: dist/ — App in dist/studio-booking/, node_modules/ daneben");
 }
 
 main();

@@ -1,9 +1,5 @@
 /**
- * Deploy-ZIP: Inhalt von dist/ (Next.js standalone) — eine gebaute App inkl. node_modules.
- *
- * Voraussetzung:  npm run build   (erzeugt studio-booking/.next und dist/)
- *
- * Aufruf:  npm run pack   oder   node scripts/pack-studio-booking-full-deploy.js
+ * ZIP aus dist/ nach npm run build. Voraussetzung: npm run build
  */
 
 const path = require('path');
@@ -70,10 +66,7 @@ output.on('close', () => {
   const mb = (archive.pointer() / 1024 / 1024).toFixed(1);
   console.log(`\n✅  Fertig! ${ZIP_NAME} (${mb} MB)`);
   console.log(`📁  Gespeichert: ${ZIP_PATH}`);
-  console.log('\n─────────────────────────────────────────────────────────────');
-  console.log('  Plesk: App-Stamm = studio-booking, Startdatei = server.js');
-  console.log('  .env in studio-booking/ anlegen — kein npm run build auf dem Server nötig');
-  console.log('─────────────────────────────────────────────────────────────\n');
+  console.log('');
 });
 
 archive.finalize();
