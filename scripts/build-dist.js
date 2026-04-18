@@ -1,6 +1,6 @@
 /**
- * Erstellt dist/ aus dem kompletten Next-Standalone-Ordner (Workspaces: node_modules liegt eine Ebene über der App).
- * Eine gebaute App — Marketing, Buchen, Admin, APIs.
+ * Erstellt dist/ als EINEN lauffaehigen Next-Standalone-Ordner.
+ * Zielstruktur in dist/: server.js, .next, public, package.json, node_modules.
  */
 const fs = require("fs");
 const path = require("path");
@@ -42,13 +42,27 @@ function main() {
   fs.rmSync(dist, { recursive: true, force: true });
   fs.mkdirSync(dist, { recursive: true });
 
+  // 1) App-Dateien (server.js, .next, public, package.json) in dist root
   if (process.platform === "win32") {
-    robocopy(standaloneRoot, dist);
+    robocopy(appInStandalone, dist);
   } else {
-    fs.cpSync(standaloneRoot, dist, { recursive: true });
+    fs.cpSync(appInStandalone, dist, { recursive: true });
   }
 
-  const staticDest = path.join(dist, "studio-booking", ".next", "static");
+  // 2) Standalone node_modules liegt eine Ebene hoeher -> nach dist/node_modules
+  const standaloneNodeModules = path.join(standaloneRoot, "node_modules");
+  if (fs.existsSync(standaloneNodeModules)) {
+    const distNodeModules = path.join(dist, "node_modules");
+    fs.rmSync(distNodeModules, { recursive: true, force: true });
+    if (process.platform === "win32") {
+      robocopy(standaloneNodeModules, distNodeModules);
+    } else {
+      fs.cpSync(standaloneNodeModules, distNodeModules, { recursive: true });
+    }
+  }
+
+  // 3) .next/static aus dem Originalbuild auf den erwarteten Ort kopieren
+  const staticDest = path.join(dist, ".next", "static");
   fs.rmSync(staticDest, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(staticDest), { recursive: true });
 
@@ -58,9 +72,10 @@ function main() {
     fs.cpSync(staticSrc, staticDest, { recursive: true });
   }
 
+  // 4) Sicherstellen, dass public aktuell ist
   const publicSrc = path.join(app, "public");
   if (fs.existsSync(publicSrc)) {
-    const publicDest = path.join(dist, "studio-booking", "public");
+    const publicDest = path.join(dist, "public");
     fs.rmSync(publicDest, { recursive: true, force: true });
     if (process.platform === "win32") {
       robocopy(publicSrc, publicDest);
@@ -69,7 +84,8 @@ function main() {
     }
   }
 
-  const envInDist = path.join(dist, "studio-booking", ".env");
+  // 5) Geheimnisse entfernen
+  const envInDist = path.join(dist, ".env");
   if (fs.existsSync(envInDist)) {
     fs.rmSync(envInDist, { force: true });
   }
@@ -78,7 +94,13 @@ function main() {
     fs.rmSync(envInRoot, { force: true });
   }
 
-  console.log("OK: dist/ — App in dist/studio-booking/, node_modules/ daneben");
+  // 6) Falls von frueheren Laeufen noch verschachtelt vorhanden, entfernen
+  const nestedApp = path.join(dist, "studio-booking");
+  if (fs.existsSync(nestedApp)) {
+    fs.rmSync(nestedApp, { recursive: true, force: true });
+  }
+
+  console.log("OK: dist/ ist jetzt ein kompletter App-Ordner (server.js im Root)");
 }
 
 main();

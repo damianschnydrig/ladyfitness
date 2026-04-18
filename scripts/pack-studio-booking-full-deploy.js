@@ -31,9 +31,9 @@ const DATE_STR = new Date().toISOString().slice(0, 10);
 const ZIP_NAME = `ladyfitness-deploy-${DATE_STR}.zip`;
 const ZIP_PATH = path.join(DESKTOP, ZIP_NAME);
 
-const serverJs = path.join(DIST_DIR, 'studio-booking', 'server.js');
+const serverJs = path.join(DIST_DIR, 'server.js');
 if (!fs.existsSync(serverJs)) {
-  console.error('\n❌  dist/studio-booking/server.js nicht gefunden.');
+  console.error('\n❌  dist/server.js nicht gefunden.');
   console.error('    Bitte zuerst im Projektroot:  npm run build\n');
   process.exit(1);
 }
