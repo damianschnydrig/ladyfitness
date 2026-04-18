@@ -12,10 +12,12 @@ Desktop.ini
 *.swp
 *.swo
 
-# Umgebung & Geheimnisse (nie committen) — Ausnahme: .env.example-Vorlagen
+# Umgebung & Geheimnisse (nie committen)
 .env
 .env.local
 .env.*.local
+**/.env
+!**/.env.example
 
 # Lokale Zugangsdaten (nie committen)
 ZUGANGSDATEN.md
@@ -27,3 +29,6 @@ npm-debug.log*
 # Deploy-Artefakte (nicht versionieren)
 *.zip
 /dist/
+
+# Supabase CLI
+studio-booking/supabase/.temp/

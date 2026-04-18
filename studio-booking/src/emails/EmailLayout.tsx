@@ -17,8 +17,6 @@ import { BRAND, COLORS, brandLogoUrl } from "@/lib/constants";
 type Props = {
   preview: string;
   children: React.ReactNode;
-  /** "customer" (hell, persönlich) oder "operator" (kompakter, informativ) */
-  variant?: "customer" | "operator";
 };
 
 export function EmailLayout({ preview, children }: Props) {
