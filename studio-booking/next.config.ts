@@ -14,6 +14,7 @@ const HTML_REDIRECTS = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: { unoptimized: true },
 
   async redirects() {

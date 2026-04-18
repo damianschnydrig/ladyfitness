@@ -1,67 +1,85 @@
 /**
- * Baut den Ordner `dist/` für Repo2web und ähnliche Tools, die nach
- * `npm run build` einen `dist`-Ordner erwarten.
- * Enthält nur die statische Website (ohne studio-booking, node_modules).
+ * Erstellt dist/ aus dem kompletten Next-Standalone-Ordner (Workspaces: node_modules liegt eine Ebene über der App).
+ * Eine gebaute App — Marketing, Buchen, Admin, APIs.
  */
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
+const app = path.join(root, "studio-booking");
+const standaloneRoot = path.join(app, ".next", "standalone");
+const appInStandalone = path.join(standaloneRoot, "studio-booking");
 const dist = path.join(root, "dist");
 
-const files = [
-  "index.html",
-  "angebot.html",
-  "betreuungszeiten.html",
-  "bilder.html",
-  "datenschutz.html",
-  "impressum.html",
-  "kontakt.html",
-  "preise.html",
-  "probetraining.html",
-  "team.html",
-  "components.js",
-  "script.js",
-  "styles.css",
-  "robots.txt",
-  "sitemap.xml",
-];
-
-const dirs = [
-  "images",
-  "appointment-cancellation",
-  "beginer",
-  "book-appointment",
-  "class-category",
-  "community-class",
-  "danke",
-  "home-page-1",
-  "my-bookings",
-];
+function robocopy(src, dest) {
+  const r = spawnSync(
+    "robocopy",
+    [src, dest, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NC", "/NS"],
+    { stdio: "inherit", shell: false },
+  );
+  if (r.error) throw r.error;
+  if (r.status !== undefined && r.status >= 8) {
+    console.error("robocopy fehlgeschlagen, Exit:", r.status);
+    process.exit(1);
+  }
+}
 
 function main() {
+  if (!fs.existsSync(path.join(appInStandalone, "server.js"))) {
+    console.error(
+      "Fehler: .next/standalone/studio-booking/server.js fehlt. Zuerst: npm run build:next",
+    );
+    process.exit(1);
+  }
+
+  const staticSrc = path.join(app, ".next", "static");
+  if (!fs.existsSync(staticSrc)) {
+    console.error("Fehler: .next/static fehlt.");
+    process.exit(1);
+  }
+
   fs.rmSync(dist, { recursive: true, force: true });
   fs.mkdirSync(dist, { recursive: true });
 
-  for (const name of files) {
-    const src = path.join(root, name);
-    if (!fs.existsSync(src)) {
-      console.warn("Hinweis: fehlt (übersprungen):", name);
-      continue;
-    }
-    fs.copyFileSync(src, path.join(dist, name));
+  if (process.platform === "win32") {
+    robocopy(standaloneRoot, dist);
+  } else {
+    fs.cpSync(standaloneRoot, dist, { recursive: true });
   }
 
-  for (const name of dirs) {
-    const src = path.join(root, name);
-    if (!fs.existsSync(src)) {
-      console.warn("Hinweis: Ordner fehlt (übersprungen):", name);
-      continue;
-    }
-    fs.cpSync(src, path.join(dist, name), { recursive: true });
+  const staticDest = path.join(dist, "studio-booking", ".next", "static");
+  fs.rmSync(staticDest, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(staticDest), { recursive: true });
+
+  if (process.platform === "win32") {
+    robocopy(staticSrc, staticDest);
+  } else {
+    fs.cpSync(staticSrc, staticDest, { recursive: true });
   }
 
-  console.log("OK: dist/ erstellt unter", dist);
+  const publicSrc = path.join(app, "public");
+  if (fs.existsSync(publicSrc)) {
+    const publicDest = path.join(dist, "studio-booking", "public");
+    fs.rmSync(publicDest, { recursive: true, force: true });
+    if (process.platform === "win32") {
+      robocopy(publicSrc, publicDest);
+    } else {
+      fs.cpSync(publicSrc, publicDest, { recursive: true });
+    }
+  }
+
+  const envInDist = path.join(dist, "studio-booking", ".env");
+  if (fs.existsSync(envInDist)) {
+    fs.rmSync(envInDist, { force: true });
+  }
+  const envInRoot = path.join(dist, ".env");
+  if (fs.existsSync(envInRoot)) {
+    fs.rmSync(envInRoot, { force: true });
+  }
+
+  console.log("OK: dist/ = Next.js standalone (komplett inkl. node_modules):", dist);
+  console.log("    Plesk: App-Stamm = Unterordner studio-booking, Startdatei = server.js");
 }
 
 main();

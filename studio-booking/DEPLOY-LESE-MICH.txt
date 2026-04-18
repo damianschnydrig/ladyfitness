@@ -34,46 +34,43 @@ A) VOR DEM DEPLOY — Einmalig auf dem Server einrichten
 B) DEPLOY-ABLAUF (jedes Mal bei Update)
 --------------------------------------------------------------------------------
 
-SCHRITT 1 — Lokal: ZIP erstellen
-  Im Root-Verzeichnis des Projekts ausführen:
+Der Build ist EINE Next.js-Anwendung (Marketing + Buchen + Kontakt + Admin). Es gibt
+keine zweite „statische Website“ mehr — dist/ ist der fertige Standalone-Output.
+
+SCHRITT 1 — Lokal: bauen und ZIP erstellen
+  Im Projektroot (ladyfitness-bremgarten.ch):
+    npm run build
     npm run pack
 
-  Das Script (scripts/pack-studio-booking-full-deploy.js):
-    • Baut das Projekt (next build)
-    • Erstellt ein ZIP auf dem Desktop:
-      ladyfitness-deploy-JJJJ-MM-TT.zip
-    • OHNE node_modules (Server installiert diese neu)
-    • OHNE .env (bleibt auf dem Server)
+  • npm run build  → next build + Ordner dist/ (Next.js „standalone“, inkl. node_modules)
+  • npm run pack   → ZIP auf dem Desktop: ladyfitness-deploy-JJJJ-MM-TT.zip
+  • Die ZIP enthält den Inhalt von dist/ (OHNE .env — bleibt auf dem Server)
 
 SCHRITT 2 — Server: ZIP hochladen
-  In Plesk → Dateiverwaltung → httpdocs
-  → ZIP hochladen
-  → ZIP entpacken (Inhalt direkt in httpdocs, NICHT in einen Unterordner)
+  Plesk → Dateiverwaltung → httpdocs
+  → ZIP hochladen → entpacken (Inhalt direkt in httpdocs, nicht doppelt verschachteln)
 
-  Nach dem Entpacken muss package.json DIREKT in httpdocs liegen:
+  Struktur nach dem Entpacken:
     httpdocs/
-      package.json    ← hier
-      server.js       ← hier
-      .next/          ← FEHLT noch, wird in Schritt 3 gebaut
-      public/
-      src/
-      ...
+      node_modules/          ← gehört dazu (Standalone)
+      studio-booking/        ← App-Stamm für Node.js
+        server.js
+        .next/
+        public/
+        package.json
+      package.json           (Workspace-Manifest, kann ignoriert werden)
 
-SCHRITT 3 — Server: Abhängigkeiten installieren & bauen
-  In Plesk → Node.js → "NPM install" ausführen
-  Danach in Plesk-Terminal (oder SSH):
-    npm run build
-
-  ODER wenn Plesk kein Build anbietet → via SSH:
-    cd /var/www/vhosts/ladyfitness-bremgarten.ch/httpdocs
-    npm ci
-    npm run build
+SCHRITT 3 — .env auf dem Server
+  Die Datei .env ANLEGEN oder aktualisieren im Ordner:
+    httpdocs/studio-booking/.env
+  (Werte wie in Abschnitt A — niemals ins Git / nicht in die ZIP packen.)
 
 SCHRITT 4 — Plesk Node.js konfigurieren
   Plesk → ladyfitness-bremgarten.ch → Node.js:
-    Anwendungsstartdatei: server.js
-    Node.js-Version:      18.x oder 20.x
-    → App neu starten / "Enable Node.js"
+    Anwendungsstamm / Document Root für die App:  Unterordner  studio-booking
+    Anwendungsstartdatei:  server.js
+    Node.js-Version:       18.x oder 20.x
+  KEIN „npm run build“ und kein „npm install“ auf dem Server nötig (alles in der ZIP).
 
 SCHRITT 5 — Test
   https://ladyfitness-bremgarten.ch/
@@ -90,8 +87,12 @@ In .env zusätzlich eintragen:
   ADMIN_SEED_PASSWORD = (sicheres Passwort wählen)
   ADMIN_SEED_NAME     = Inhaberin
 
-Dann via SSH / Plesk-Terminal:
+Dann auf dem ENTWICKLUNGS-PC im vollen Git-Projekt (nicht nur in der ZIP), mit .env
+die auf dieselbe Supabase-Produktions-DB zeigt:
+  cd studio-booking
   npm run db:seed-admin
+
+(Oder gleichwertig: npm run db:seed-admin -w studio-booking vom Projektroot.)
 
 Danach ADMIN_SEED_* aus .env wieder entfernen.
 

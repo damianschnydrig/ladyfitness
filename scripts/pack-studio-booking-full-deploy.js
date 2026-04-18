@@ -1,11 +1,9 @@
 /**
- * Deploy-Script: Lady Fitness Bremgarten
- * Erstellt ein ZIP des Quellcodes für Plesk/Node.js-Hosting.
+ * Deploy-ZIP: Inhalt von dist/ (Next.js standalone) — eine gebaute App inkl. node_modules.
  *
- * Aufruf:
- *   1) Erst bauen:  cd studio-booking && npm run build
- *   2) Dann packen: cd .. && npm run pack
- *      ODER:        node scripts/pack-studio-booking-full-deploy.js
+ * Voraussetzung:  npm run build   (erzeugt studio-booking/.next und dist/)
+ *
+ * Aufruf:  npm run pack   oder   node scripts/pack-studio-booking-full-deploy.js
  */
 
 const path = require('path');
@@ -30,22 +28,21 @@ function requireArchiver() {
 
 const archiver = requireArchiver();
 
-const ROOT = __dirname;
-const APP_DIR = path.join(ROOT, '..', 'studio-booking');
+const PROJECT_ROOT = path.join(__dirname, '..');
+const DIST_DIR = path.join(PROJECT_ROOT, 'dist');
 const DESKTOP = path.join(require('os').homedir(), 'Desktop');
 const DATE_STR = new Date().toISOString().slice(0, 10);
 const ZIP_NAME = `ladyfitness-deploy-${DATE_STR}.zip`;
 const ZIP_PATH = path.join(DESKTOP, ZIP_NAME);
 
-// .next vorhanden?
-const nextDir = path.join(APP_DIR, '.next');
-if (!fs.existsSync(nextDir)) {
-  console.error('\n❌  .next-Ordner nicht gefunden.');
-  console.error('    Bitte zuerst bauen:  cd studio-booking && npm run build\n');
+const serverJs = path.join(DIST_DIR, 'studio-booking', 'server.js');
+if (!fs.existsSync(serverJs)) {
+  console.error('\n❌  dist/studio-booking/server.js nicht gefunden.');
+  console.error('    Bitte zuerst im Projektroot:  npm run build\n');
   process.exit(1);
 }
 
-console.log(`\n📦  ZIP wird erstellt: ${ZIP_NAME}\n`);
+console.log(`\n📦  ZIP aus dist/ (Next standalone): ${ZIP_NAME}\n`);
 
 const output = fs.createWriteStream(ZIP_PATH);
 const archive = archiver('zip', { zlib: { level: 6 } });
@@ -56,13 +53,12 @@ archive.on('warning', (err) => {
 archive.on('error', (err) => { throw err; });
 archive.pipe(output);
 
-// Quellcode + .next (gebaut) verpacken; node_modules und .env ausschliessen
 archive.glob('**', {
-  cwd: APP_DIR,
+  cwd: DIST_DIR,
   ignore: [
-    'node_modules/**',
     '.env',
     '.env.local',
+    '.env.*.local',
     '.git/**',
     '**/*.zip',
     '**/npm-debug.log*',
@@ -75,7 +71,8 @@ output.on('close', () => {
   console.log(`\n✅  Fertig! ${ZIP_NAME} (${mb} MB)`);
   console.log(`📁  Gespeichert: ${ZIP_PATH}`);
   console.log('\n─────────────────────────────────────────────────────────────');
-  console.log('  Nächste Schritte → DEPLOY-LESE-MICH.txt im ZIP beachten');
+  console.log('  Plesk: App-Stamm = studio-booking, Startdatei = server.js');
+  console.log('  .env in studio-booking/ anlegen — kein npm run build auf dem Server nötig');
   console.log('─────────────────────────────────────────────────────────────\n');
 });
 
