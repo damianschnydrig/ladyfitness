@@ -3,12 +3,15 @@
   "version": "2.0.0",
   "private": true,
   "description": "Lady Fitness Bremgarten — Marketing + Buchungs-App in einem Next.js-Projekt",
+  "workspaces": [
+    "studio-booking"
+  ],
   "scripts": {
-    "postinstall": "npm --prefix studio-booking install",
-    "dev": "npm --prefix studio-booking run dev",
-    "build": "npm --prefix studio-booking run build",
-    "start": "npm --prefix studio-booking run start",
-    "install:all": "npm --prefix studio-booking install",
+    "dev": "npm run dev -w studio-booking",
+    "build": "npm run build -w studio-booking",
+    "start": "npm run start -w studio-booking",
+    "lint": "npm run lint -w studio-booking",
+    "install:all": "npm install",
     "pack": "node scripts/pack-studio-booking-full-deploy.js"
   }
 }

@@ -10,7 +10,25 @@
 
 const path = require('path');
 const fs = require('fs');
-const archiver = require(path.join(__dirname, '..', 'studio-booking', 'node_modules', 'archiver'));
+
+function requireArchiver() {
+  const candidates = [
+    path.join(__dirname, '..', 'studio-booking', 'node_modules', 'archiver'),
+    path.join(__dirname, '..', 'node_modules', 'archiver'),
+  ];
+  for (const mod of candidates) {
+    try {
+      return require(mod);
+    } catch {
+      /* try next */
+    }
+  }
+  throw new Error(
+    'archiver nicht gefunden. Bitte im Projektroot: npm install (Workspaces installieren devDependencies).',
+  );
+}
+
+const archiver = requireArchiver();
 
 const ROOT = __dirname;
 const APP_DIR = path.join(ROOT, '..', 'studio-booking');
