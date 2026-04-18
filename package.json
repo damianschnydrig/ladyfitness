@@ -8,8 +8,9 @@
   ],
   "scripts": {
     "dev": "npm run dev -w studio-booking",
-    "build": "npm run build -w studio-booking && node scripts/build-dist.js && node scripts/build-httpdocs-static.js",
+    "build": "npm run build -w studio-booking && node scripts/build-dist.js",
     "build:next": "npm run build -w studio-booking",
+    "build:static-mirror": "node scripts/build-httpdocs-static.js",
     "start": "npm run start -w studio-booking",
     "lint": "npm run lint -w studio-booking",
     "install:all": "npm install",
