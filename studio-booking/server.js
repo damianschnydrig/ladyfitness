@@ -1,5 +1,5 @@
 /**
  * Plesk / Node: Anwendungsstartdatei = diese Datei (server.js).
- * Voraussetzung: einmalig `npm run build` im Projektroot (erzeugt .next/standalone/...).
+ * Voraussetzung: `npm run build` (kopiert `.next/static` + `public` via scripts/copy-standalone-assets.js).
  */
 require("./.next/standalone/studio-booking/server.js");

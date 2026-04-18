@@ -18,7 +18,9 @@ npm run dev
 npm run build
 ```
 
-Erzeugt u. a. `studio-booking/.next/` inkl. **standalone**-Server. Auf dem Server nach `git pull`: `npm install`, `npm run build`, Node-Anwendungsstartdatei `server.js` (siehe `studio-booking/server.js`), **kein** `basePath` — die App läuft im **Domain-Root**.
+Erzeugt u. a. `studio-booking/.next/` inkl. **standalone**-Server. Nach jedem Build kopiert `studio-booking/scripts/copy-standalone-assets.js` automatisch **`.next/static`** (CSS/JS unter `/_next/static/`) und **`public`** in den Standalone-Ordner — sonst fehlen Styles im Live-Betrieb.
+
+Auf dem Server nach `git pull`: `npm install`, `npm run build`, Node-Anwendungsstartdatei `server.js` (siehe `studio-booking/server.js`), **kein** `basePath` — die App läuft im **Domain-Root**.
 
 ## Struktur
 
