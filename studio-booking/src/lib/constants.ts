@@ -4,7 +4,7 @@ export const BRAND = {
   address: "Zürcherstrasse 7, 5620 Bremgarten",
   phone: "+41 56 631 68 09",
   phoneDisplay: "056 631 68 09",
-  email: "info@ladyfitness-bremgarten.ch",
+  email: "buchung@ladyfitness-bremgarten.ch",
   instagram: "https://www.instagram.com/ladyfitnessbremgarten",
   staticSiteUrl: "https://ladyfitness-bremgarten.ch",
 } as const;

@@ -1,58 +1,128 @@
 ================================================================================
-Lady Fitness — Buchungs-App (studio-booking) — Server nach dem Entpacken
+Lady Fitness Bremgarten — Deploy-Anleitung (Stand: April 2026)
 ================================================================================
 
-Dieses ZIP enthält den Quellcode OHNE node_modules und OHNE .next (werden auf
-dem Server neu erzeugt). Die lokale .env ist NICHT enthalten — Sie legen .env
-auf dem Server neu an.
+TECHNOLOGIE: Next.js 15 · Supabase (Cloud-DB) · Resend (E-Mail) · Node.js
+HOSTING:     Plesk mit Node.js-App-Support
 
 --------------------------------------------------------------------------------
-1) Entpacken
+A) VOR DEM DEPLOY — Einmalig auf dem Server einrichten
 --------------------------------------------------------------------------------
-Alle Dateien in den Document Root der Subdomain buchung legen, z. B.:
-  buchung.ladyfitness-bremgarten.ch → httpdocs
 
-Nach dem Entpacken muss package.json DIREKT in diesem Ordner liegen.
+1. DOMAIN konfigurieren
+   In Plesk: Websiteverwaltung → ladyfitness-bremgarten.ch
+   → Dokumentenstamm: httpdocs (Standard)
+   → Node.js aktivieren (falls noch nicht aktiv)
+   → Node.js-Version: 18 oder höher
 
---------------------------------------------------------------------------------
-2) Datei .env anlegen
---------------------------------------------------------------------------------
-Kopieren Sie .env.example nach .env und tragen Sie die echten Werte ein:
+2. .env-Datei auf dem Server anlegen
+   Kopie von .env.example erstellen, echte Werte eintragen:
 
-  DATABASE_URL     = MySQL-Verbindung (Passwort mit Sonderzeichen URL-kodieren)
-  AUTH_SECRET      = z. B. openssl rand -base64 32
-  NEXT_PUBLIC_APP_URL = https://buchung.ladyfitness-bremgarten.ch
-  RESEND_API_KEY, MAIL_FROM, OPERATOR_EMAIL
-  ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD (nur für ersten Admin)
+     NEXT_PUBLIC_SUPABASE_URL    = https://xxxx.supabase.co (siehe Supabase Dashboard → Settings → API)
+     NEXT_PUBLIC_SUPABASE_ANON_KEY = sb_publishable_... (Anon/Public Key)
+     SUPABASE_SERVICE_KEY        = sb_secret_... (Service Role Key — geheim!)
+     AUTH_SECRET                 = (openssl rand -base64 32 → zufälliger 32-Byte-Wert)
+     NEXT_PUBLIC_APP_URL         = https://ladyfitness-bremgarten.ch
+     RESEND_API_KEY              = re_... (aus Resend-Dashboard)
+     MAIL_FROM                   = Lady Fitness Bremgarten <buchung@ladyfitness-bremgarten.ch>
+     OPERATOR_EMAIL              = buchung@ladyfitness-bremgarten.ch
 
---------------------------------------------------------------------------------
-3) Per SSH im App-Ordner (einmal)
---------------------------------------------------------------------------------
-  npm ci
-  npm run build
-  npx prisma migrate deploy
-  npm run db:seed
-
-db:seed nur beim ersten Mal (legt Admin an).
+   Die .env-Datei liegt IM APP-ORDNER (gleiche Ebene wie package.json).
+   NIEMALS ins Git oder in die ZIP aufnehmen.
 
 --------------------------------------------------------------------------------
-4) App dauerhaft starten
+B) DEPLOY-ABLAUF (jedes Mal bei Update)
 --------------------------------------------------------------------------------
-  npm start
 
-Plesk „Anwendungsstartdatei“:  server.js  (nicht app.js — die gibt es bei Next.js nicht)
-Anwendungsstamm = Ordner mit package.json (wie bei dir).
+SCHRITT 1 — Lokal: ZIP erstellen
+  Im Root-Verzeichnis des Projekts ausführen:
+    npm run pack
+
+  Das Script (scripts/pack-studio-booking-full-deploy.js):
+    • Baut das Projekt (next build)
+    • Erstellt ein ZIP auf dem Desktop:
+      ladyfitness-deploy-JJJJ-MM-TT.zip
+    • OHNE node_modules (Server installiert diese neu)
+    • OHNE .env (bleibt auf dem Server)
+
+SCHRITT 2 — Server: ZIP hochladen
+  In Plesk → Dateiverwaltung → httpdocs
+  → ZIP hochladen
+  → ZIP entpacken (Inhalt direkt in httpdocs, NICHT in einen Unterordner)
+
+  Nach dem Entpacken muss package.json DIREKT in httpdocs liegen:
+    httpdocs/
+      package.json    ← hier
+      server.js       ← hier
+      .next/          ← FEHLT noch, wird in Schritt 3 gebaut
+      public/
+      src/
+      ...
+
+SCHRITT 3 — Server: Abhängigkeiten installieren & bauen
+  In Plesk → Node.js → "NPM install" ausführen
+  Danach in Plesk-Terminal (oder SSH):
+    npm run build
+
+  ODER wenn Plesk kein Build anbietet → via SSH:
+    cd /var/www/vhosts/ladyfitness-bremgarten.ch/httpdocs
+    npm ci
+    npm run build
+
+SCHRITT 4 — Plesk Node.js konfigurieren
+  Plesk → ladyfitness-bremgarten.ch → Node.js:
+    Anwendungsstartdatei: server.js
+    Node.js-Version:      18.x oder 20.x
+    → App neu starten / "Enable Node.js"
+
+SCHRITT 5 — Test
+  https://ladyfitness-bremgarten.ch/
+  https://ladyfitness-bremgarten.ch/buchen
+  https://ladyfitness-bremgarten.ch/kontakt
+  https://ladyfitness-bremgarten.ch/admin
 
 --------------------------------------------------------------------------------
-4b) Plesk-Hinweis Dokumentenstamm
+C) ADMIN-BENUTZER (nur beim allerersten Deploy)
 --------------------------------------------------------------------------------
-Optional laut Plesk: Dokumentenstamm auf Unterordner „public“ setzen — nur wenn die
-Oberfläche das anbietet und die Seite danach noch läuft; sonst erst server.js testen.
+
+In .env zusätzlich eintragen:
+  ADMIN_SEED_EMAIL    = admin@ladyfitness-bremgarten.ch
+  ADMIN_SEED_PASSWORD = (sicheres Passwort wählen)
+  ADMIN_SEED_NAME     = Inhaberin
+
+Dann via SSH / Plesk-Terminal:
+  npm run db:seed-admin
+
+Danach ADMIN_SEED_* aus .env wieder entfernen.
 
 --------------------------------------------------------------------------------
-5) Test
+D) SUPABASE-DATENBANK
 --------------------------------------------------------------------------------
-  https://buchung.ladyfitness-bremgarten.ch/api/health
-  https://buchung.ladyfitness-bremgarten.ch/buchen
+
+Die Datenbank läuft in der Cloud auf Supabase.
+Schema ist bereits angewendet (001_initial_schema.sql wurde ausgeführt).
+Bei einem neuen Supabase-Projekt: SQL aus studio-booking/supabase/migrations/
+im Supabase SQL-Editor ausführen.
+
+Keine Datenbank-Konfiguration auf dem Plesk-Server nötig.
+
+--------------------------------------------------------------------------------
+E) TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Problem: App startet nicht / weisser Bildschirm
+  → .env vollständig? AUTH_SECRET gesetzt?
+  → NEXT_PUBLIC_APP_URL korrekte URL (https, kein trailing slash)?
+  → Node.js-Version ≥ 18?
+  → Plesk-Logs prüfen
+
+Problem: E-Mails kommen nicht an
+  → RESEND_API_KEY korrekt?
+  → In Resend-Dashboard: ist ladyfitness-bremgarten.ch als Absender verifiziert?
+  → OPERATOR_EMAIL korrekt?
+
+Problem: Admin-Login funktioniert nicht
+  → AUTH_SECRET gesetzt und min. 32 Zeichen?
+  → Admin-Benutzer mit db:seed-admin angelegt?
 
 ================================================================================

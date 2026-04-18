@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { adminUpdateContactStatus } from "@/actions/admin";
 import { formatZurichShort } from "@/lib/datetime";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { ContactInquiry } from "@/lib/supabase/types";
 
 export const metadata: Metadata = {
   title: "Kontaktanfragen",
@@ -16,10 +17,14 @@ const statusLabels: Record<string, string> = {
 };
 
 export default async function AdminContactsPage() {
-  const rows = await prisma.contactInquiry.findMany({
-    where: { status: { not: "ARCHIVED" } },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = getSupabaseServer();
+  const { data } = await supabase
+    .from("contact_inquiries")
+    .select("*")
+    .neq("status", "ARCHIVED")
+    .order("created_at", { ascending: false });
+
+  const rows = (data ?? []) as ContactInquiry[];
 
   return (
     <div className="space-y-8">
@@ -35,10 +40,7 @@ export default async function AdminContactsPage() {
       ) : (
         <div className="space-y-6">
           {rows.map((c) => (
-            <article
-              key={c.id}
-              className="border border-brand-border bg-white p-5"
-            >
+            <article key={c.id} className="border border-brand-border bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <span className="inline-block bg-brand-dark px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
@@ -46,7 +48,7 @@ export default async function AdminContactsPage() {
                   </span>
                   <h2 className="mt-3 font-serif text-xl">{c.subject}</h2>
                   <p className="mt-1 text-sm text-brand-muted">
-                    {c.firstName} {c.lastName} · {formatZurichShort(c.createdAt)}
+                    {c.first_name} {c.last_name} · {formatZurichShort(c.created_at)}
                   </p>
                 </div>
                 <form action={adminUpdateContactStatus} className="flex flex-col gap-2 text-sm">

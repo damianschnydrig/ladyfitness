@@ -1,20 +1,13 @@
 {
   "name": "ladyfitness-bremgarten-ch",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Lady Fitness: Marketing-Website + Buchungs-App (studio-booking), ein Repo",
+  "description": "Lady Fitness Bremgarten — Marketing + Buchungs-App in einem Next.js-Projekt",
   "scripts": {
-    "build": "node scripts/build-dist.js",
-    "build:booking": "npm --prefix studio-booking run build",
-    "build:all": "npm run build && npm run build:booking",
-    "dev": "http-server . -p 3000 -c-1",
-    "dev:booking": "npm --prefix studio-booking run dev",
-    "setup:booking-login": "npm --prefix studio-booking run setup:login",
-    "start": "http-server . -p 3000 -c-1",
-    "pack": "node scripts/pack-upload.js",
-    "pack:booking": "node scripts/pack-studio-booking-deploy.js"
-  },
-  "devDependencies": {
-    "http-server": "^14.1.1"
+    "dev": "npm --prefix studio-booking run dev",
+    "build": "npm --prefix studio-booking run build",
+    "start": "npm --prefix studio-booking run start",
+    "install:all": "npm --prefix studio-booking install",
+    "pack": "node scripts/pack-studio-booking-full-deploy.js"
   }
 }

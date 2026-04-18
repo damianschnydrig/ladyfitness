@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { formatZurichShort, formatZurichTimeRange } from "@/lib/datetime";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { BookingWithSlot, ContactInquiry } from "@/lib/supabase/types";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -9,39 +10,51 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const now = new Date();
+  const now = new Date().toISOString();
+  const supabase = getSupabaseServer();
 
-  const [openProbe, openPt, newContacts, nextBookings, recentContacts] =
-    await Promise.all([
-      prisma.booking.count({
-        where: {
-          type: "PROBETRAINING",
-          status: "CONFIRMED",
-          slot: { endAt: { gte: now } },
-        },
-      }),
-      prisma.booking.count({
-        where: {
-          type: "PERSONAL_TRAINING",
-          status: "CONFIRMED",
-          slot: { endAt: { gte: now } },
-        },
-      }),
-      prisma.contactInquiry.count({ where: { status: "NEW" } }),
-      prisma.booking.findMany({
-        where: {
-          status: "CONFIRMED",
-          slot: { startAt: { gte: now } },
-        },
-        include: { slot: true },
-        orderBy: { slot: { startAt: "asc" } },
-        take: 6,
-      }),
-      prisma.contactInquiry.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-    ]);
+  const [
+    { count: openProbe },
+    { count: openPt },
+    { count: newContacts },
+    { data: nextBookingsRaw },
+    { data: recentContactsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "CONFIRMED")
+      .eq("type", "PROBETRAINING"),
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "CONFIRMED")
+      .eq("type", "PERSONAL_TRAINING"),
+    supabase
+      .from("contact_inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "NEW"),
+    supabase
+      .from("bookings")
+      .select("*, slot:time_slots(*)")
+      .eq("status", "CONFIRMED")
+      .gte("time_slots.start_at", now)
+      .order("created_at", { ascending: true })
+      .limit(10),
+    supabase
+      .from("contact_inquiries")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
+
+  const allNextBookings = (nextBookingsRaw ?? []) as BookingWithSlot[];
+  const nextBookings = allNextBookings
+    .filter((b) => b.slot && b.slot.start_at >= now)
+    .sort((a, b) => new Date(a.slot.start_at).getTime() - new Date(b.slot.start_at).getTime())
+    .slice(0, 6);
+
+  const recentContacts = (recentContactsRaw ?? []) as ContactInquiry[];
 
   return (
     <div className="space-y-10">
@@ -55,19 +68,19 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label="Offene Probetrainings"
-          value={openProbe}
+          value={openProbe ?? 0}
           href="/admin/bookings?typ=PROBETRAINING"
           tone="pink"
         />
         <StatCard
           label="Offene Personal Trainings"
-          value={openPt}
+          value={openPt ?? 0}
           href="/admin/bookings?typ=PERSONAL_TRAINING"
           tone="dark"
         />
         <StatCard
           label="Neue Kontaktanfragen"
-          value={newContacts}
+          value={newContacts ?? 0}
           href="/admin/contacts"
           tone="muted"
         />
@@ -93,15 +106,13 @@ export default async function AdminDashboardPage() {
               {nextBookings.map((b) => (
                 <li key={b.id} className="flex flex-col gap-1 py-3 first:pt-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-brand-pink">
-                    {b.type === "PROBETRAINING"
-                      ? "Probetraining"
-                      : "Personal Training"}
+                    {b.type === "PROBETRAINING" ? "Probetraining" : "Personal Training"}
                   </span>
                   <span className="font-medium text-brand-dark">
-                    {formatZurichTimeRange(b.slot.startAt, b.slot.endAt)}
+                    {formatZurichTimeRange(b.slot.start_at, b.slot.end_at)}
                   </span>
                   <span className="text-brand-muted">
-                    {b.firstName} {b.lastName} · {b.email}
+                    {b.first_name} {b.last_name} · {b.email}
                   </span>
                 </li>
               ))}
@@ -127,12 +138,10 @@ export default async function AdminDashboardPage() {
             <ul className="mt-4 divide-y divide-brand-border text-sm">
               {recentContacts.map((c) => (
                 <li key={c.id} className="py-3 first:pt-0">
-                  <span className="text-xs font-bold uppercase text-brand-dark">
-                    Kontakt
-                  </span>
+                  <span className="text-xs font-bold uppercase text-brand-dark">Kontakt</span>
                   <p className="mt-1 font-medium">{c.subject}</p>
                   <p className="text-brand-muted">
-                    {c.firstName} {c.lastName} · {formatZurichShort(c.createdAt)}
+                    {c.first_name} {c.last_name} · {formatZurichShort(c.created_at)}
                   </p>
                 </li>
               ))}
@@ -166,9 +175,7 @@ function StatCard({
       href={href}
       className={`block border-2 bg-white p-5 transition hover:shadow-soft ${border}`}
     >
-      <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">
-        {label}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">{label}</p>
       <p className="mt-2 font-serif text-4xl text-brand-dark">{value}</p>
     </Link>
   );

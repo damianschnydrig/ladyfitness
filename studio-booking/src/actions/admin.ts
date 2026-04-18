@@ -1,11 +1,11 @@
 "use server";
 
-import { BookingStatus, BookingType, ContactStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { parseZurichWallClock } from "@/lib/datetime";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { BookingStatus, ContactStatus } from "@/lib/supabase/types";
 import { slotCreateSchema, slotDeleteSchema } from "@/lib/validations";
 
 async function requireAdmin() {
@@ -47,12 +47,12 @@ export async function adminCreateSlot(formData: FormData): Promise<void> {
     return;
   }
 
-  await prisma.timeSlot.create({
-    data: {
-      startAt,
-      endAt,
-      bookingType: bookingType as BookingType,
-    },
+  const supabase = getSupabaseServer();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from("time_slots").insert({
+    start_at: startAt.toISOString(),
+    end_at: endAt.toISOString(),
+    booking_type: bookingType,
   });
 
   revalidatePath("/admin/slots");
@@ -65,20 +65,26 @@ export async function adminDeleteSlot(formData: FormData): Promise<void> {
   const parsed = slotDeleteSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) return;
 
-  const slot = await prisma.timeSlot.findUnique({
-    where: { id: parsed.data.id },
-    include: { booking: true },
-  });
-  if (slot?.booking) return;
+  const supabase = getSupabaseServer();
 
-  await prisma.timeSlot.delete({ where: { id: parsed.data.id } });
+  // Nur löschen wenn kein Booking vorhanden
+  const { data: existing } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("slot_id", parsed.data.id)
+    .maybeSingle();
+
+  if (existing) return;
+
+  await supabase.from("time_slots").delete().eq("id", parsed.data.id);
+
   revalidatePath("/admin/slots");
   revalidatePath("/admin/calendar");
   revalidatePath("/buchen");
 }
 
 const statusSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().uuid(),
   status: z.enum(["CONFIRMED", "CANCELLED", "COMPLETED"]),
 });
 
@@ -90,10 +96,12 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
   });
   if (!parsed.success) return;
 
-  await prisma.booking.update({
-    where: { id: parsed.data.id },
-    data: { status: parsed.data.status as BookingStatus },
-  });
+  const supabase = getSupabaseServer();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from("bookings")
+    .update({ status: parsed.data.status as BookingStatus })
+    .eq("id", parsed.data.id);
 
   revalidatePath("/admin/bookings");
   revalidatePath("/admin/archive");
@@ -101,7 +109,7 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
 }
 
 const contactStatusSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().uuid(),
   status: z.enum(["NEW", "IN_PROGRESS", "DONE", "ARCHIVED"]),
 });
 
@@ -113,10 +121,12 @@ export async function adminUpdateContactStatus(formData: FormData): Promise<void
   });
   if (!parsed.success) return;
 
-  await prisma.contactInquiry.update({
-    where: { id: parsed.data.id },
-    data: { status: parsed.data.status as ContactStatus },
-  });
+  const supabase = getSupabaseServer();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from("contact_inquiries")
+    .update({ status: parsed.data.status as ContactStatus })
+    .eq("id", parsed.data.id);
 
   revalidatePath("/admin/contacts");
   revalidatePath("/admin/archive");

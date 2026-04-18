@@ -2,8 +2,7 @@ import { render } from "@react-email/render";
 import { Resend } from "resend";
 import { CustomerBookingEmail } from "@/emails/CustomerBookingEmail";
 import { CustomerContactEmail } from "@/emails/CustomerContactEmail";
-import { OperatorBookingEmail } from "@/emails/OperatorBookingEmail";
-import { OperatorContactEmail } from "@/emails/OperatorContactEmail";
+import { generateOperatorBookingHtml, generateOperatorContactHtml } from "@/lib/operator-email-html";
 import { BRAND } from "@/lib/constants";
 
 function getResend() {
@@ -55,17 +54,15 @@ export async function sendBookingEmails(payload: {
     })
   );
 
-  const operatorHtml = await render(
-    OperatorBookingEmail({
-      type: payload.type,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      email: payload.email,
-      phone: payload.phone,
-      whenLabel: payload.whenLabel,
-      notes: payload.notes,
-    })
-  );
+  const operatorHtml = generateOperatorBookingHtml({
+    type: payload.type,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    email: payload.email,
+    phone: payload.phone,
+    whenLabel: payload.whenLabel,
+    notes: payload.notes,
+  });
 
   const subjectCustomer =
     payload.type === "PROBETRAINING"
@@ -118,16 +115,14 @@ export async function sendContactEmails(payload: {
     })
   );
 
-  const operatorHtml = await render(
-    OperatorContactEmail({
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      email: payload.email,
-      phone: payload.phone,
-      subject: payload.subject,
-      message: payload.message,
-    })
-  );
+  const operatorHtml = generateOperatorContactHtml({
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    email: payload.email,
+    phone: payload.phone,
+    subject: payload.subject,
+    message: payload.message,
+  });
 
   await resend.emails.send({
     from,

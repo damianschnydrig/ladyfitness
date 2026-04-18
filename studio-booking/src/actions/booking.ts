@@ -1,10 +1,10 @@
 "use server";
 
-import { BookingType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { formatZurichTimeRange } from "@/lib/datetime";
 import { sendBookingEmails } from "@/lib/mail";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { BookingType } from "@/lib/supabase/types";
 import { bookingCreateSchema } from "@/lib/validations";
 
 export type BookingActionResult =
@@ -39,60 +39,55 @@ export async function createBooking(
   }
 
   const data = parsed.data;
+  const supabase = getSupabaseServer();
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const slot = await tx.timeSlot.findUnique({
-        where: { id: data.slotId },
-        include: { booking: true },
-      });
-
-      if (!slot) {
-        throw new Error("Dieser Termin ist nicht mehr verfügbar.");
-      }
-      if (slot.booking) {
-        throw new Error("Dieser Termin wurde soeben gebucht. Bitte wählen Sie einen anderen Slot.");
-      }
-      if (slot.bookingType !== (data.type as BookingType)) {
-        throw new Error("Termin passt nicht zur gewählten Buchungsart.");
-      }
-      if (slot.startAt.getTime() <= Date.now()) {
-        throw new Error("Dieser Termin liegt in der Vergangenheit.");
-      }
-
-      const booking = await tx.booking.create({
-        data: {
-          slotId: slot.id,
-          type: data.type as BookingType,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email.trim().toLowerCase(),
-          phone: data.phone.trim(),
-          notes: data.notes?.trim() || null,
-          status: "CONFIRMED",
-        },
-      });
-
-      return { booking, slot };
+    // Atomare Buchung via PostgreSQL-Funktion (verhindert Race Conditions)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: result, error } = await (supabase as any).rpc("create_booking_atomic", {
+      p_slot_id: data.slotId,
+      p_type: data.type as BookingType,
+      p_first_name: data.firstName,
+      p_last_name: data.lastName,
+      p_email: data.email.trim().toLowerCase(),
+      p_phone: data.phone.trim(),
+      p_notes: data.notes?.trim() ?? null,
     });
 
-    const whenLabel = formatZurichTimeRange(
-      result.slot.startAt,
-      result.slot.endAt
-    );
+    if (error) {
+      console.error("[booking] RPC Fehler:", error);
+      return { ok: false, message: "Buchung fehlgeschlagen. Bitte später erneut versuchen." };
+    }
 
-    try {
-      await sendBookingEmails({
-        type: data.type as "PROBETRAINING" | "PERSONAL_TRAINING",
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email.trim(),
-        phone: data.phone.trim(),
-        whenLabel,
-        notes: data.notes?.trim(),
-      });
-    } catch (mailErr) {
-      console.error("[mail] Buchungs-E-Mails fehlgeschlagen:", mailErr);
+    const row = Array.isArray(result) ? result[0] : result;
+
+    if (!row || row.error_message) {
+      return { ok: false, message: row?.error_message ?? "Unbekannter Fehler." };
+    }
+
+    // Slot-Daten für E-Mail laden
+    const { data: rawSlot } = await supabase
+      .from("time_slots")
+      .select("start_at, end_at")
+      .eq("id", data.slotId)
+      .single();
+    const slot = rawSlot as { start_at: string; end_at: string } | null;
+
+    if (slot) {
+      const whenLabel = formatZurichTimeRange(slot.start_at, slot.end_at);
+      try {
+        await sendBookingEmails({
+          type: data.type as "PROBETRAINING" | "PERSONAL_TRAINING",
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email.trim(),
+          phone: data.phone.trim(),
+          whenLabel,
+          notes: data.notes?.trim(),
+        });
+      } catch (mailErr) {
+        console.error("[mail] Buchungs-E-Mails fehlgeschlagen:", mailErr);
+      }
     }
 
     revalidatePath("/admin");
@@ -100,7 +95,7 @@ export async function createBooking(
     revalidatePath("/admin/calendar");
     revalidatePath("/buchen");
 
-    return { ok: true, bookingId: result.booking.id };
+    return { ok: true, bookingId: row.booking_id };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unbekannter Fehler.";
     return { ok: false, message: msg };

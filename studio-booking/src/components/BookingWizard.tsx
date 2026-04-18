@@ -70,21 +70,7 @@ export function BookingWizard() {
   }, [state, router]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-4 py-12 sm:px-6">
-      <header className="space-y-3 text-center sm:text-left">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-pink">
-          Online buchen
-        </p>
-        <h1 className="font-serif text-3xl sm:text-4xl text-balance leading-tight">
-          Termin wählen
-        </h1>
-        <p className="text-brand-muted max-w-xl text-sm leading-relaxed">
-          Wählen Sie zuerst die Art des Termins, dann einen freien Slot. Ihre
-          Daten werden verschlüsselt übertragen und nur für die Terminvereinbarung
-          verwendet.
-        </p>
-      </header>
-
+    <div className="mx-auto max-w-3xl space-y-10">
       <section className="space-y-4">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-brand-dark">
           1. Art des Termins

@@ -1,4 +1,4 @@
-import { Hr, Section, Text } from "@react-email/components";
+import { Section, Text } from "@react-email/components";
 import * as React from "react";
 import { EmailLayout } from "@/emails/EmailLayout";
 import { COLORS } from "@/lib/constants";
@@ -12,71 +12,194 @@ type Props = {
   notes?: string | null;
 };
 
-const titles: Record<BookingType, string> = {
-  PROBETRAINING: "Ihr Probetraining ist reserviert",
-  PERSONAL_TRAINING: "Ihr Personal Training ist reserviert",
+const config: Record<BookingType, { title: string; label: string; badge: string }> = {
+  PROBETRAINING: {
+    title: "Ihr Probetraining ist reserviert",
+    label: "Probetraining",
+    badge: "PROBETRAINING",
+  },
+  PERSONAL_TRAINING: {
+    title: "Ihr Personal Training ist reserviert",
+    label: "Personal Training",
+    badge: "PERSONAL TRAINING",
+  },
 };
 
-export function CustomerBookingEmail({
-  type,
-  firstName,
-  whenLabel,
-  notes,
-}: Props) {
-  const label =
-    type === "PROBETRAINING" ? "Probetraining" : "Personal Training";
+export function CustomerBookingEmail({ type, firstName, whenLabel, notes }: Props) {
+  const { title, label, badge } = config[type];
+
   return (
-    <EmailLayout preview={titles[type]}>
-      <Text style={heading}>{titles[type]}</Text>
-      <Text style={body}>Guten Tag {firstName},</Text>
+    <EmailLayout preview={`${title} — wir freuen uns auf Sie!`}>
+
+      {/* Eyebrow */}
+      <Text style={eyebrow}>{badge}</Text>
+
+      {/* Titel */}
+      <Text style={heading}>{title}</Text>
+
+      {/* Anrede */}
       <Text style={body}>
-        vielen Dank für Ihre Anfrage bei Lady Fitness Bremgarten. Wir haben Ihr{" "}
-        <strong>{label}</strong> wie folgt für Sie festgehalten:
+        Guten Tag <strong>{firstName}</strong>,
       </Text>
-      <Section
-        style={{
-          backgroundColor: COLORS.pinkLight,
-          padding: "16px 18px",
-          margin: "16px 0",
-        }}
-      >
-        <Text style={{ ...body, margin: 0, fontWeight: 600, color: COLORS.dark }}>
-          {whenLabel}
+      <Text style={body}>
+        vielen Dank für Ihre Buchung bei Lady Fitness Bremgarten. Wir haben
+        Ihr <strong>{label}</strong> erfolgreich für Sie reserviert — wir
+        freuen uns auf Sie!
+      </Text>
+
+      {/* Termin-Box */}
+      <Section style={appointmentBox}>
+        <Text style={appointmentLabel}>IHR TERMIN</Text>
+        <Text style={appointmentDate}>{whenLabel}</Text>
+        <Text style={appointmentWhere}>
+          Lady Fitness Bremgarten · Zürcherstrasse 7 · 5620 Bremgarten
         </Text>
       </Section>
+
+      {/* Mitteilung */}
       {notes ? (
-        <Text style={body}>
-          <strong>Ihre Mitteilung:</strong>
-          <br />
-          {notes}
-        </Text>
+        <Section style={notesBox}>
+          <Text style={notesLabel}>Ihre Mitteilung</Text>
+          <Text style={notesText}>{notes}</Text>
+        </Section>
       ) : null}
+
+      {/* Hinweise */}
       <Text style={body}>
-        Wir freuen uns auf Sie. Bei Fragen erreichen Sie uns telefonisch unter{" "}
-        <strong>056 631 68 09</strong> oder per E-Mail unter{" "}
-        <strong>info@ladyfitness-bremgarten.ch</strong>.
+        Bitte bringen Sie bequeme Sportkleidung und Hallenschuhe mit.
+        Bei Fragen oder falls Sie den Termin nicht wahrnehmen können,
+        melden Sie sich bitte rechtzeitig bei uns.
       </Text>
-      <Hr style={{ borderColor: COLORS.border, margin: "24px 0" }} />
-      <Text style={{ ...body, fontSize: "13px", color: COLORS.muted }}>
-        Diese E-Mail wurde automatisch erstellt. Bitte antworten Sie nicht direkt
-        auf diese Nachricht, falls der Absender eine No-Reply-Adresse ist —
-        kontaktieren Sie uns über die oben genannten Kanäle.
+
+      {/* Kontakt-Karte */}
+      <Section style={contactCard}>
+        <Text style={contactTitle}>Kontakt &amp; Anfahrt</Text>
+        <Text style={contactLine}>
+          <span style={{ color: COLORS.pink, fontWeight: 700 }}>Tel.</span>{" "}
+          056 631 68 09
+        </Text>
+        <Text style={contactLine}>
+          <span style={{ color: COLORS.pink, fontWeight: 700 }}>E-Mail</span>{" "}
+          buchung@ladyfitness-bremgarten.ch
+        </Text>
+        <Text style={contactLine}>
+          <span style={{ color: COLORS.pink, fontWeight: 700 }}>Adresse</span>{" "}
+          Zürcherstrasse 7, 5620 Bremgarten
+        </Text>
+      </Section>
+
+      {/* Gruss */}
+      <Text style={{ ...body, marginTop: "28px" }}>
+        Wir sehen uns beim Training!
       </Text>
+      <Text style={{ ...body, marginBottom: 0 }}>
+        Herzliche Grüsse
+        <br />
+        <strong style={{ color: COLORS.dark }}>Ihr Team von Lady Fitness Bremgarten</strong>
+      </Text>
+
     </EmailLayout>
   );
 }
 
-const heading = {
-  fontSize: "22px",
-  fontWeight: 700 as const,
+/* ── Styles ── */
+const eyebrow: React.CSSProperties = {
+  fontSize: "11px",
+  fontWeight: 700,
+  letterSpacing: "0.14em",
+  color: COLORS.pink,
+  margin: "0 0 10px",
+  textTransform: "uppercase",
+};
+
+const heading: React.CSSProperties = {
+  fontSize: "26px",
+  fontWeight: 700,
   color: COLORS.dark,
-  margin: "0 0 16px",
+  margin: "0 0 20px",
+  lineHeight: 1.25,
+};
+
+const body: React.CSSProperties = {
+  fontSize: "15px",
+  lineHeight: 1.7,
+  color: "#333333",
+  margin: "0 0 14px",
+};
+
+const appointmentBox: React.CSSProperties = {
+  backgroundColor: COLORS.dark,
+  padding: "22px 24px",
+  margin: "20px 0",
+};
+
+const appointmentLabel: React.CSSProperties = {
+  fontSize: "10px",
+  fontWeight: 700,
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
+  color: COLORS.pink,
+  margin: "0 0 8px",
+};
+
+const appointmentDate: React.CSSProperties = {
+  fontSize: "20px",
+  fontWeight: 700,
+  color: "#ffffff",
+  margin: "0 0 6px",
   lineHeight: 1.3,
 };
 
-const body = {
-  fontSize: "15px",
+const appointmentWhere: React.CSSProperties = {
+  fontSize: "13px",
+  color: "rgba(255,255,255,0.60)",
+  margin: 0,
+  lineHeight: 1.5,
+};
+
+const notesBox: React.CSSProperties = {
+  backgroundColor: "#f8f4f6",
+  borderLeft: `4px solid ${COLORS.pink}`,
+  padding: "14px 18px",
+  margin: "0 0 20px",
+};
+
+const notesLabel: React.CSSProperties = {
+  fontSize: "10px",
+  fontWeight: 700,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: COLORS.muted,
+  margin: "0 0 6px",
+};
+
+const notesText: React.CSSProperties = {
+  fontSize: "14px",
+  color: COLORS.dark,
+  margin: 0,
   lineHeight: 1.6,
-  color: COLORS.text,
-  margin: "0 0 14px",
+  whiteSpace: "pre-wrap",
+};
+
+const contactCard: React.CSSProperties = {
+  backgroundColor: "#f8f4f6",
+  padding: "18px 20px",
+  margin: "16px 0",
+  borderTop: `3px solid ${COLORS.pink}`,
+};
+
+const contactTitle: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: 700,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: COLORS.dark,
+  margin: "0 0 10px",
+};
+
+const contactLine: React.CSSProperties = {
+  fontSize: "14px",
+  color: "#333333",
+  margin: "0 0 6px",
+  lineHeight: 1.5,
 };

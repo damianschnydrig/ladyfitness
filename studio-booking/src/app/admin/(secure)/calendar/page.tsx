@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DateTime } from "luxon";
 import { formatZurichShort } from "@/lib/datetime";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { TimeSlotWithBooking } from "@/lib/supabase/types";
 
 export const metadata: Metadata = {
   title: "Kalender",
@@ -22,20 +23,22 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
     return <p className="text-sm text-red-600">Ungültiger Monat.</p>;
   }
 
-  const start = base.startOf("month").toUTC().toJSDate();
-  const end = base.endOf("month").toUTC().toJSDate();
+  const start = base.startOf("month").toUTC().toISO()!;
+  const end = base.endOf("month").toUTC().toISO()!;
 
-  const slots = await prisma.timeSlot.findMany({
-    where: {
-      startAt: { gte: start, lte: end },
-    },
-    include: { booking: true },
-    orderBy: { startAt: "asc" },
-  });
+  const supabase = getSupabaseServer();
+  const { data } = await supabase
+    .from("time_slots")
+    .select("*, booking:bookings(*)")
+    .gte("start_at", start)
+    .lte("start_at", end)
+    .order("start_at", { ascending: true });
+
+  const slots = (data ?? []) as TimeSlotWithBooking[];
 
   const byDay = new Map<string, typeof slots>();
   for (const s of slots) {
-    const key = DateTime.fromJSDate(s.startAt, { zone: "utc" })
+    const key = DateTime.fromISO(s.start_at, { zone: "utc" })
       .setZone(zone)
       .toFormat("yyyy-MM-dd");
     const list = byDay.get(key) ?? [];
@@ -98,8 +101,8 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
                       >
                         <div>
                           <p className="font-medium text-brand-dark">
-                            {formatZurichShort(s.startAt)} –{" "}
-                            {DateTime.fromJSDate(s.endAt, { zone: "utc" })
+                            {formatZurichShort(s.start_at)} –{" "}
+                            {DateTime.fromISO(s.end_at, { zone: "utc" })
                               .setZone(zone)
                               .toFormat("HH:mm")}
                           </p>
@@ -108,7 +111,7 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                          <TypeBadge type={s.bookingType} />
+                          <TypeBadge type={s.booking_type} />
                           <span
                             className={`text-xs font-bold uppercase tracking-wider ${
                               booked ? "text-brand-pink-dark" : "text-green-700"
@@ -118,8 +121,7 @@ export default async function AdminCalendarPage({ searchParams }: Props) {
                           </span>
                           {booked && s.booking ? (
                             <span className="max-w-xs text-right text-xs text-brand-muted">
-                              {s.booking.firstName} {s.booking.lastName} ·{" "}
-                              {s.booking.email}
+                              {s.booking.first_name} {s.booking.last_name} · {s.booking.email}
                             </span>
                           ) : null}
                         </div>

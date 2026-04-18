@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { formatZurichTimeRange } from "@/lib/datetime";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { BookingWithSlot, ContactInquiry } from "@/lib/supabase/types";
 
 export const metadata: Metadata = {
   title: "Archiv",
@@ -8,41 +9,54 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminArchivePage() {
-  const now = new Date();
+  const now = new Date().toISOString();
+  const supabase = getSupabaseServer();
 
-  const [pastBookings, closedBookings, archivedContacts] = await Promise.all([
-    prisma.booking.findMany({
-      where: {
-        status: "CONFIRMED",
-        slot: { endAt: { lt: now } },
-      },
-      include: { slot: true },
-      orderBy: { slot: { startAt: "desc" } },
-      take: 100,
-    }),
-    prisma.booking.findMany({
-      where: { status: { in: ["CANCELLED", "COMPLETED"] } },
-      include: { slot: true },
-      orderBy: { updatedAt: "desc" },
-      take: 100,
-    }),
-    prisma.contactInquiry.findMany({
-      where: { status: { in: ["DONE", "ARCHIVED"] } },
-      orderBy: { updatedAt: "desc" },
-      take: 100,
-    }),
+  const [
+    { data: pastBookingsRaw },
+    { data: closedBookingsRaw },
+    { data: archivedContactsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("*, slot:time_slots(*)")
+      .eq("status", "CONFIRMED")
+      .lt("time_slots.end_at", now),
+    supabase
+      .from("bookings")
+      .select("*, slot:time_slots(*)")
+      .in("status", ["CANCELLED", "COMPLETED"])
+      .order("updated_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("contact_inquiries")
+      .select("*")
+      .in("status", ["DONE", "ARCHIVED"])
+      .order("updated_at", { ascending: false })
+      .limit(100),
   ]);
 
-  const bookingArchive = [...pastBookings, ...closedBookings].sort(
-    (a, b) => b.slot.startAt.getTime() - a.slot.startAt.getTime()
+  const pastBookings = (pastBookingsRaw ?? []) as BookingWithSlot[];
+  const closedBookings = (closedBookingsRaw ?? []) as BookingWithSlot[];
+  const archivedContacts = (archivedContactsRaw ?? []) as ContactInquiry[];
+
+  // Vergangene bestätigte Buchungen: slot.end_at < now
+  const trulyPast = pastBookings.filter(
+    (b) => b.slot && new Date(b.slot.end_at).getTime() < new Date(now).getTime()
   );
 
+  const combined = [...trulyPast, ...closedBookings];
   const seen = new Set<string>();
-  const uniqueBookings = bookingArchive.filter((b) => {
-    if (seen.has(b.id)) return false;
-    seen.add(b.id);
-    return true;
-  });
+  const uniqueBookings = combined
+    .filter((b) => {
+      if (seen.has(b.id)) return false;
+      seen.add(b.id);
+      return true;
+    })
+    .sort((a, b) => {
+      if (!a.slot || !b.slot) return 0;
+      return new Date(b.slot.start_at).getTime() - new Date(a.slot.start_at).getTime();
+    });
 
   return (
     <div className="space-y-12">
@@ -62,10 +76,7 @@ export default async function AdminArchivePage() {
         ) : (
           <ul className="mt-4 space-y-2">
             {uniqueBookings.map((b) => (
-              <li
-                key={b.id}
-                className="border border-brand-border bg-white px-4 py-3 text-sm"
-              >
+              <li key={b.id} className="border border-brand-border bg-white px-4 py-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span
                     className={`text-[10px] font-bold uppercase tracking-wider ${
@@ -77,10 +88,10 @@ export default async function AdminArchivePage() {
                   <span className="text-xs text-brand-muted">{b.status}</span>
                 </div>
                 <p className="mt-1 font-medium">
-                  {formatZurichTimeRange(b.slot.startAt, b.slot.endAt)}
+                  {b.slot ? formatZurichTimeRange(b.slot.start_at, b.slot.end_at) : "–"}
                 </p>
                 <p className="text-brand-muted">
-                  {b.firstName} {b.lastName} · {b.email}
+                  {b.first_name} {b.last_name} · {b.email}
                 </p>
               </li>
             ))}
@@ -97,19 +108,14 @@ export default async function AdminArchivePage() {
         ) : (
           <ul className="mt-4 space-y-2">
             {archivedContacts.map((c) => (
-              <li
-                key={c.id}
-                className="border border-brand-border bg-white px-4 py-3 text-sm"
-              >
+              <li key={c.id} className="border border-brand-border bg-white px-4 py-3 text-sm">
                 <div className="flex flex-wrap justify-between gap-2">
-                  <span className="text-[10px] font-bold uppercase text-brand-dark">
-                    Kontakt
-                  </span>
+                  <span className="text-[10px] font-bold uppercase text-brand-dark">Kontakt</span>
                   <span className="text-xs text-brand-muted">{c.status}</span>
                 </div>
                 <p className="mt-1 font-medium">{c.subject}</p>
                 <p className="text-brand-muted">
-                  {c.firstName} {c.lastName} · {c.email}
+                  {c.first_name} {c.last_name} · {c.email}
                 </p>
               </li>
             ))}

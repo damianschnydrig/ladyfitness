@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import "./marketing.css";
 import { BRAND, publicSiteUrl } from "@/lib/constants";
 
 const dmSans = DM_Sans({
@@ -17,11 +18,11 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: `${BRAND.name} — Buchen & Kontakt`,
+    default: `${BRAND.name} — Frauenfitness mit persönlicher Betreuung`,
     template: `%s · ${BRAND.shortName}`,
   },
   description:
-    "Probetraining und Personal Training online buchen oder Kontakt aufnehmen — Lady Fitness Bremgarten.",
+    "Lady Fitness Bremgarten — Frauenfitness in Bremgarten AG: Milon-Zirkel, Power Plate, Personal Training. QUALITOP, krankenkassenanerkannt. 365 Tage offen.",
   metadataBase: new URL(publicSiteUrl()),
 };
 
@@ -31,10 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de-CH">
-      <body
-        className={`${dmSans.variable} ${instrumentSerif.variable} min-h-screen font-sans antialiased text-brand-dark bg-white`}
-      >
+    <html lang="de-CH" className={`${dmSans.variable} ${instrumentSerif.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
       </body>
     </html>

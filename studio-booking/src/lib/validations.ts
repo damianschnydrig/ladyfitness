@@ -6,7 +6,7 @@ export const bookingTypeSchema = z.enum([
 ]);
 
 export const bookingCreateSchema = z.object({
-  slotId: z.string().cuid(),
+  slotId: z.string().uuid(),
   type: bookingTypeSchema,
   firstName: z.string().trim().min(1, "Vorname fehlt").max(80),
   lastName: z.string().trim().min(1, "Nachname fehlt").max(80),
@@ -17,12 +17,12 @@ export const bookingCreateSchema = z.object({
 });
 
 export const contactCreateSchema = z.object({
-  firstName: z.string().trim().min(1).max(80),
-  lastName: z.string().trim().min(1).max(80),
-  email: z.string().trim().email(),
-  phone: z.string().trim().min(6).max(40),
+  firstName: z.string().trim().min(1, "Vorname fehlt").max(80),
+  lastName: z.string().trim().min(1, "Nachname fehlt").max(80),
+  email: z.string().trim().email("Ungültige E-Mail-Adresse"),
+  phone: z.string().trim().min(6, "Telefonnummer zu kurz").max(40),
   subject: z.string().trim().min(2, "Betreff fehlt").max(200),
-  message: z.string().trim().min(10, "Nachricht zu kurz").max(8000),
+  message: z.string().trim().min(10, "Nachricht bitte etwas ausführlicher (mind. 10 Zeichen)").max(8000),
   website: z.string().max(0).optional(),
 });
 
@@ -39,5 +39,5 @@ export const slotCreateSchema = z.object({
 });
 
 export const slotDeleteSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().uuid(),
 });

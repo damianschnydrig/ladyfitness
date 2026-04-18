@@ -32,16 +32,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
         if (!parsed.success) return null;
 
-        const { prisma } = await import("@/lib/prisma");
+        const { getSupabaseServer } = await import("@/lib/supabase/server");
         const bcrypt = await import("bcryptjs");
 
         const email = parsed.data.email.toLowerCase();
-        const user = await prisma.adminUser.findUnique({
-          where: { email },
-        });
+        const supabase = getSupabaseServer();
+
+        const { data: rawUser } = await supabase
+          .from("admin_users")
+          .select("id, email, password_hash, name")
+          .eq("email", email)
+          .single();
+
+        const user = rawUser as {
+          id: string;
+          email: string;
+          password_hash: string;
+          name: string | null;
+        } | null;
+
         if (!user) return null;
 
-        const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
+        const ok = await bcrypt.compare(parsed.data.password, user.password_hash);
         if (!ok) return null;
 
         return {

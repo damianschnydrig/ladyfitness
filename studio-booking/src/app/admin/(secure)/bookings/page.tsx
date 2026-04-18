@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { adminUpdateBookingStatus } from "@/actions/admin";
 import { formatZurichTimeRange } from "@/lib/datetime";
-import { prisma } from "@/lib/prisma";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import type { BookingWithSlot } from "@/lib/supabase/types";
 
 export const metadata: Metadata = {
   title: "Buchungen",
@@ -10,23 +11,36 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ typ?: string; von?: string }>;
+  searchParams: Promise<{ typ?: string }>;
 };
 
 export default async function AdminBookingsPage({ searchParams }: Props) {
   const sp = await searchParams;
-  const typ = sp.typ === "PERSONAL_TRAINING" ? "PERSONAL_TRAINING" : sp.typ === "PROBETRAINING" ? "PROBETRAINING" : undefined;
-  const now = new Date();
+  const typ =
+    sp.typ === "PERSONAL_TRAINING"
+      ? "PERSONAL_TRAINING"
+      : sp.typ === "PROBETRAINING"
+        ? "PROBETRAINING"
+        : undefined;
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      status: "CONFIRMED",
-      slot: { endAt: { gte: now } },
-      ...(typ ? { type: typ } : {}),
-    },
-    include: { slot: true },
-    orderBy: { slot: { startAt: "asc" } },
-  });
+  const now = new Date().toISOString();
+  const supabase = getSupabaseServer();
+
+  let query = supabase
+    .from("bookings")
+    .select("*, slot:time_slots(*)")
+    .eq("status", "CONFIRMED");
+
+  if (typ) query = query.eq("type", typ);
+
+  const { data: rawBookings } = await query;
+
+  const bookings = ((rawBookings ?? []) as BookingWithSlot[])
+    .filter((b) => b.slot && b.slot.end_at >= now)
+    .sort(
+      (a, b) =>
+        new Date(a.slot.start_at).getTime() - new Date(b.slot.start_at).getTime()
+    );
 
   return (
     <div className="space-y-8">
@@ -72,10 +86,10 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                     <TypeBadge type={b.type} />
                   </td>
                   <td className="px-4 py-3 font-medium">
-                    {formatZurichTimeRange(b.slot.startAt, b.slot.endAt)}
+                    {formatZurichTimeRange(b.slot.start_at, b.slot.end_at)}
                   </td>
                   <td className="px-4 py-3">
-                    {b.firstName} {b.lastName}
+                    {b.first_name} {b.last_name}
                   </td>
                   <td className="px-4 py-3 text-brand-muted">
                     <a className="text-brand-pink hover:underline" href={`mailto:${b.email}`}>

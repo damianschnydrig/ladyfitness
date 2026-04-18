@@ -5,27 +5,15 @@
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
     "dev:classic": "next dev -p 3001",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "node server.js",
     "lint": "next lint",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:migrate:dev": "prisma migrate dev",
-    "db:push": "prisma db push",
-    "db:seed": "prisma db seed",
-    "db:list-admins": "tsx --env-file=.env scripts/list-admins.ts",
-    "db:verify-admin": "tsx --env-file=.env scripts/verify-admin.ts",
-    "setup:login": "prisma migrate deploy && prisma db seed && tsx --env-file=.env scripts/verify-admin.ts",
-    "preflight": "powershell -ExecutionPolicy Bypass -File ./scripts/preflight-deploy.ps1",
-    "postinstall": "prisma generate"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts"
   },
   "dependencies": {
-    "@prisma/client": "6.3.1",
     "@react-email/components": "^1.0.10",
     "@react-email/render": "^2.0.4",
+    "@supabase/supabase-js": "^2.103.3",
     "bcryptjs": "^3.0.3",
     "luxon": "^3.7.2",
     "next": "15.3.3",
@@ -34,9 +22,8 @@
     "react-dom": "^19.0.0",
     "react-email": "^5.2.10",
     "resend": "^6.9.4",
-    "zod": "^4.3.6",
-    "prisma": "6.3.1",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -45,6 +32,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "archiver": "^7.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "postcss": "^8",

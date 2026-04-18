@@ -1,18 +1,15 @@
 import Link from "next/link";
-import { BRAND, publicSiteUrl } from "@/lib/constants";
+import { BRAND } from "@/lib/constants";
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
-  const mainSite = BRAND.staticSiteUrl;
-  const appBase = publicSiteUrl();
-
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <header className="sticky top-0 z-40 border-b border-brand-border/80 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link href={mainSite} className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`${mainSite}/images/logo.png`}
+              src="/images/logo.png"
               alt={BRAND.name}
               className="h-7 w-auto"
               width={140}
@@ -20,19 +17,13 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             />
           </Link>
           <nav className="flex flex-wrap items-center justify-end gap-4 text-xs font-semibold uppercase tracking-[0.12em] text-brand-dark">
-            <Link className="hover:text-brand-pink transition-colors" href={mainSite}>
+            <Link className="hover:text-brand-pink transition-colors" href="/">
               Website
             </Link>
-            <Link
-              className="hover:text-brand-pink transition-colors"
-              href={`${appBase}/buchen`}
-            >
+            <Link className="hover:text-brand-pink transition-colors" href="/buchen">
               Buchen
             </Link>
-            <Link
-              className="hover:text-brand-pink transition-colors"
-              href={`${appBase}/kontakt`}
-            >
+            <Link className="hover:text-brand-pink transition-colors" href="/kontakt">
               Kontakt
             </Link>
           </nav>
