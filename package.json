@@ -4,6 +4,7 @@
   "private": true,
   "description": "Lady Fitness Bremgarten — Marketing + Buchungs-App in einem Next.js-Projekt",
   "scripts": {
+    "postinstall": "npm --prefix studio-booking install",
     "dev": "npm --prefix studio-booking run dev",
     "build": "npm --prefix studio-booking run build",
     "start": "npm --prefix studio-booking run start",
