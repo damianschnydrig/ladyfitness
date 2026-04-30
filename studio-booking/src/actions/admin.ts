@@ -185,8 +185,7 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
     slotBefore = (slotRaw as Pick<TimeSlot, "start_at" | "end_at"> | null) ?? null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from("bookings")
     .update({ status: parsed.data.status as BookingStatus })
     .eq("id", parsed.data.id);
@@ -226,8 +225,7 @@ export async function adminUpdateContactStatus(formData: FormData): Promise<void
   if (!parsed.success) return;
 
   const supabase = getSupabaseServer();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from("contact_inquiries")
     .update({ status: parsed.data.status as ContactStatus })
     .eq("id", parsed.data.id);

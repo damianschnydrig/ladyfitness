@@ -38,8 +38,6 @@ const LEGACY_PATH_REDIRECTS: { source: string; destination: string }[] = [
 ];
 
 const nextConfig: NextConfig = {
-  /** Standalone-Server; `.next/static` + `public` nach `next build` per Skript in den Standalone-Ordner kopieren. */
-  output: "standalone",
   images: { unoptimized: true },
   // Kein basePath — Domain-Root = App-Root (Plesk).
 

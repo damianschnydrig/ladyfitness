@@ -5,6 +5,7 @@ Eine **Next.js 15**-App (Marketing, Buchen, Kontakt, Admin). Keine statischen HT
 ## Entwicklung
 
 ```bash
+cd studio-booking
 npm install
 # studio-booking/.env aus .env.example anlegen
 npm run dev
@@ -15,12 +16,11 @@ npm run dev
 ## Build & Deploy (Plesk / Node)
 
 ```bash
+cd studio-booking
 npm run build
 ```
 
-Erzeugt u. a. `studio-booking/.next/` inkl. **standalone**-Server. Nach jedem Build kopiert `studio-booking/scripts/copy-standalone-assets.js` automatisch **`.next/static`** (CSS/JS unter `/_next/static/`) und **`public`** in den Standalone-Ordner — sonst fehlen Styles im Live-Betrieb.
-
-Auf dem Server nach `git pull`: `npm install`, `npm run build`, Node-Anwendungsstartdatei `server.js` (siehe `studio-booking/server.js`), **kein** `basePath` — die App läuft im **Domain-Root**.
+Auf dem Server in `/httpdocs/studio-booking` nach `git pull`: `npm ci`, `npm run build`, dann Node.js neustarten. Start per `npm start` (`next start`), **kein** `basePath` — die App läuft im **Domain-Root**.
 
 ## Struktur
 

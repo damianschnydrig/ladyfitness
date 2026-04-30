@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
     "dev:classic": "next dev -p 3001",
-    "build": "node scripts/cleanup-public-mirror.js && next build && node scripts/copy-standalone-assets.js",
-    "start": "node server.js",
+    "build": "node scripts/cleanup-public-mirror.js && next build",
+    "start": "next start",
     "lint": "next lint",
     "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts"
   },
