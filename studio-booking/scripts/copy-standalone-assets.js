@@ -13,15 +13,18 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const appRoot = path.resolve(__dirname, "..");
-const pkg = require(path.join(appRoot, "package.json"));
-const appName = pkg.name;
+const standaloneRootDir = path.join(appRoot, ".next", "standalone");
+const standaloneNestedDir = path.join(standaloneRootDir, "studio-booking");
 
-const standaloneAppDir = path.join(
-  appRoot,
-  ".next",
-  "standalone",
-  appName,
-);
+function resolveStandaloneDir() {
+  const rootServer = path.join(standaloneRootDir, "server.js");
+  if (fs.existsSync(rootServer)) return standaloneRootDir;
+
+  const nestedServer = path.join(standaloneNestedDir, "server.js");
+  if (fs.existsSync(nestedServer)) return standaloneNestedDir;
+
+  return null;
+}
 
 function robocopy(src, dest) {
   const r = spawnSync(
@@ -50,11 +53,12 @@ function copyDir(src, dest) {
 }
 
 function main() {
-  if (!fs.existsSync(path.join(standaloneAppDir, "server.js"))) {
+  const standaloneAppDir = resolveStandaloneDir();
+  if (!standaloneAppDir) {
     console.error(
       "copy-standalone-assets: Standalone fehlt. Zuerst: next build (output: standalone)",
     );
-    console.error("  Erwartet:", standaloneAppDir);
+    console.error("  Erwartet:", standaloneRootDir, "oder", standaloneNestedDir);
     process.exit(1);
   }
 
