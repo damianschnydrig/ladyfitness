@@ -2,7 +2,12 @@ export type BookingType = "PROBETRAINING" | "PERSONAL_TRAINING";
 export type BookingStatus = "CONFIRMED" | "CANCELLED" | "COMPLETED";
 export type ContactStatus = "NEW" | "IN_PROGRESS" | "DONE" | "ARCHIVED";
 export type ContactCategory = "GENERAL" | "MEMBERSHIP" | "OTHER";
-type SupabaseRecord = Record<string, unknown>;
+
+/**
+ * @supabase/postgrest-js `GenericTable` verlangt Row/Insert/Update, die `Record<string, unknown>` erweitern.
+ * Ohne diese Schnittmenge kollabiert `Database["public"] extends GenericSchema` → `Schema = never` → `insert` = `never`.
+ */
+type R<T> = T & Record<string, unknown>;
 
 export interface AdminUser {
   id: string;
@@ -69,33 +74,32 @@ export interface WeeklySlotRule {
   updated_at: string;
 }
 
-// Supabase Database type — exaktes Format für createClient<Database>
 export type Database = {
   public: {
     Tables: {
       admin_users: {
-        Row: AdminUser & SupabaseRecord;
-        Insert: {
+        Row: R<AdminUser>;
+        Insert: R<{
           id?: string;
           email: string;
           password_hash: string;
           name?: string | null;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
-        Update: {
+        }>;
+        Update: R<{
           id?: string;
           email?: string;
           password_hash?: string;
           name?: string | null;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
+        }>;
         Relationships: [];
       };
       time_slots: {
-        Row: TimeSlot & SupabaseRecord;
-        Insert: {
+        Row: R<TimeSlot>;
+        Insert: R<{
           id?: string;
           start_at: string;
           end_at: string;
@@ -103,8 +107,8 @@ export type Database = {
           generated_by_schedule?: boolean;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
-        Update: {
+        }>;
+        Update: R<{
           id?: string;
           start_at?: string;
           end_at?: string;
@@ -112,12 +116,12 @@ export type Database = {
           generated_by_schedule?: boolean;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
+        }>;
         Relationships: [];
       };
       weekly_slot_rules: {
-        Row: WeeklySlotRule & SupabaseRecord;
-        Insert: {
+        Row: R<WeeklySlotRule>;
+        Insert: R<{
           id?: string;
           booking_type: BookingType;
           weekday: number;
@@ -125,8 +129,8 @@ export type Database = {
           end_time: string;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
-        Update: {
+        }>;
+        Update: R<{
           id?: string;
           booking_type?: BookingType;
           weekday?: number;
@@ -134,12 +138,12 @@ export type Database = {
           end_time?: string;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
+        }>;
         Relationships: [];
       };
       bookings: {
-        Row: Booking & SupabaseRecord;
-        Insert: {
+        Row: R<Booking>;
+        Insert: R<{
           id?: string;
           slot_id: string;
           type: BookingType;
@@ -151,8 +155,8 @@ export type Database = {
           status?: BookingStatus;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
-        Update: {
+        }>;
+        Update: R<{
           id?: string;
           slot_id?: string;
           type?: BookingType;
@@ -164,7 +168,7 @@ export type Database = {
           status?: BookingStatus;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
+        }>;
         Relationships: [
           {
             foreignKeyName: "bookings_slot_id_fkey";
@@ -176,8 +180,8 @@ export type Database = {
         ];
       };
       contact_inquiries: {
-        Row: ContactInquiry & SupabaseRecord;
-        Insert: {
+        Row: R<ContactInquiry>;
+        Insert: R<{
           id?: string;
           first_name: string;
           last_name: string;
@@ -189,8 +193,8 @@ export type Database = {
           status?: ContactStatus;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
-        Update: {
+        }>;
+        Update: R<{
           id?: string;
           first_name?: string;
           last_name?: string;
@@ -202,14 +206,14 @@ export type Database = {
           status?: ContactStatus;
           created_at?: string;
           updated_at?: string;
-        } & SupabaseRecord;
+        }>;
         Relationships: [];
       };
     };
     Views: Record<string, never>;
     Functions: {
       create_booking_atomic: {
-        Args: {
+        Args: R<{
           p_slot_id: string;
           p_type: BookingType;
           p_first_name: string;
@@ -217,7 +221,7 @@ export type Database = {
           p_email: string;
           p_phone: string;
           p_notes?: string | null;
-        };
+        }>;
         Returns: Array<{
           booking_id: string | null;
           error_message: string | null;

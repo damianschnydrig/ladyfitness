@@ -73,14 +73,15 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
 
   await supabase.from("weekly_slot_rules").delete().eq("booking_type", bookingType);
   if (activeRules.length > 0) {
-    await supabase.from("weekly_slot_rules").insert(
-      activeRules.map((r) => ({
+    const weeklyInserts: Database["public"]["Tables"]["weekly_slot_rules"]["Insert"][] = activeRules.map(
+      (r) => ({
         booking_type: bookingType,
         weekday: r.weekday,
         start_time: r.startTime!,
         end_time: r.endTime!,
-      })),
+      }),
     );
+    await supabase.from("weekly_slot_rules").insert(weeklyInserts);
   }
 
   // Zukunfts-Slots dieses Typs vollständig aus Wochenplan neu aufbauen:

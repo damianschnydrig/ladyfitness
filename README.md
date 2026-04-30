@@ -46,6 +46,8 @@ npm run build
 
 Danach in Plesk: **Node.js-Anwendung neu starten**.
 
+**Wichtig:** In Plesk darf unter „npm install / Build“ **keine** eigene Zeile wie `next build && node scripts/copy-standalone-assets.js` stehen — das überschreibt `package.json`. Es muss schlicht `npm run build` im App-Root laufen (Script = nur `next build`).
+
 Einmalig bei Altlasten: falls `public/studio-booking` existiert → `rm -rf public/studio-booking` (sonst riskiert TypeScript, doppelte Quellen zu kompilieren).
 
 ## Runtime (NextAuth / Middleware)
