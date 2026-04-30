@@ -11,7 +11,7 @@ const globalForSupabase = globalThis as unknown as {
  */
 export function getSupabaseServer() {
   if (!globalForSupabase.supabaseServer) {
-    globalForSupabase.supabaseServer = createClient(
+    globalForSupabase.supabaseServer = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!,
       {

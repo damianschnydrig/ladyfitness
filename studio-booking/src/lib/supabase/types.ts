@@ -59,12 +59,13 @@ export interface ContactInquiry {
 }
 
 export interface WeeklySlotRule {
-  id: number;
-  booking_type: string;
+  id: string;
+  booking_type: BookingType;
   weekday: number;
   start_time: string;
   end_time: string;
   created_at: string;
+  updated_at: string;
 }
 
 // Supabase Database type — exaktes Format für createClient<Database>
@@ -114,25 +115,24 @@ export type Database = {
         Relationships: [];
       };
       weekly_slot_rules: {
-        Row: {
-          id: number;
-          booking_type: string;
-          weekday: number;
-          start_time: string;
-          end_time: string;
-          created_at: string;
-        };
+        Row: WeeklySlotRule;
         Insert: {
-          booking_type: string;
+          id?: string;
+          booking_type: BookingType;
           weekday: number;
           start_time: string;
           end_time: string;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
-          booking_type?: string;
+          id?: string;
+          booking_type?: BookingType;
           weekday?: number;
           start_time?: string;
           end_time?: string;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { formatZurichTimeRange } from "@/lib/datetime";
 import { sendBookingCancelledEmail } from "@/lib/mail";
+import { getSupabaseServer } from "@/lib/supabase/server";
 import type { BookingStatus, ContactStatus, TimeSlot } from "@/lib/supabase/types";
 import { weeklySlotRuleSchema } from "@/lib/validations";
 import { DateTime } from "luxon";
@@ -16,14 +16,6 @@ async function requireAdmin() {
     throw new Error("Nicht angemeldet.");
   }
   return session;
-}
-
-function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
 }
 
 type WeeklyRuleInput = {
@@ -69,13 +61,15 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
     }
   }
 
-  const supabase = createAdminClient();
-  const supabaseAdmin = createAdminClient();
+  const supabase = getSupabaseServer();
   const activeRules = rows.filter((r) => r.startTime && r.endTime);
 
-  await supabaseAdmin.from("weekly_slot_rules").delete().eq("booking_type", bookingType);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from("weekly_slot_rules").delete().eq("booking_type", bookingType);
   if (activeRules.length > 0) {
-    await supabaseAdmin.from("weekly_slot_rules").insert(
+    // Some production environments use stale generated DB types; cast keeps runtime query valid.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("weekly_slot_rules").insert(
       activeRules.map((r) => ({
         booking_type: bookingType,
         weekday: r.weekday,
@@ -87,7 +81,8 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
 
   // Nicht gebuchte, automatisch erzeugte Zukunfts-Slots ersetzen.
   const nowIso = new Date().toISOString();
-  const { data: generatedSlots } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: generatedSlots } = await (supabase as any)
     .from("time_slots")
     .select("id")
     .eq("booking_type", bookingType)
@@ -134,7 +129,8 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
   }
 
   if (insertRows.length > 0) {
-    await supabase.from("time_slots").insert(insertRows);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("time_slots").insert(insertRows);
   }
 
   revalidatePath("/admin/slots");
@@ -155,7 +151,7 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
   });
   if (!parsed.success) return;
 
-  const supabase = createAdminClient();
+  const supabase = getSupabaseServer();
   const { data: bookingBeforeRaw } = await supabase
     .from("bookings")
     .select("id, slot_id, first_name, last_name, email, status")
@@ -182,7 +178,11 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
     slotBefore = (slotRaw as Pick<TimeSlot, "start_at" | "end_at"> | null) ?? null;
   }
 
-  await supabase.from("bookings").update({ status: parsed.data.status as BookingStatus }).eq("id", parsed.data.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from("bookings")
+    .update({ status: parsed.data.status as BookingStatus })
+    .eq("id", parsed.data.id);
 
   const shouldSendCancelMail =
     parsed.data.status === "CANCELLED" &&
@@ -218,8 +218,9 @@ export async function adminUpdateContactStatus(formData: FormData): Promise<void
   });
   if (!parsed.success) return;
 
-  const supabase = createAdminClient();
-  await supabase
+  const supabase = getSupabaseServer();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
     .from("contact_inquiries")
     .update({ status: parsed.data.status as ContactStatus })
     .eq("id", parsed.data.id);
@@ -239,7 +240,7 @@ export async function adminDeleteBooking(formData: FormData): Promise<void> {
   });
   if (!parsed.success) return;
 
-  const supabase = createAdminClient();
+  const supabase = getSupabaseServer();
   await supabase.from("bookings").delete().eq("id", parsed.data.id);
 
   revalidatePath("/admin/bookings");
@@ -256,7 +257,7 @@ export async function adminDeleteContactInquiry(formData: FormData): Promise<voi
   });
   if (!parsed.success) return;
 
-  const supabase = createAdminClient();
+  const supabase = getSupabaseServer();
   await supabase.from("contact_inquiries").delete().eq("id", parsed.data.id);
 
   revalidatePath("/admin/contacts");
