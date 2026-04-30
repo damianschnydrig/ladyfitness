@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/types";
 
 const globalForSupabase = globalThis as unknown as {
-  supabaseServer: ReturnType<typeof createClient> | undefined;
+  supabaseServer: SupabaseClient<Database> | undefined;
 };
 
 /**

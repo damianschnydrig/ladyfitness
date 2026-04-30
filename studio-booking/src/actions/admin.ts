@@ -6,7 +6,7 @@ import { auth } from "@/auth";
 import { formatZurichTimeRange } from "@/lib/datetime";
 import { sendBookingCancelledEmail } from "@/lib/mail";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import type { BookingStatus, ContactStatus } from "@/lib/supabase/types";
+import type { BookingStatus, ContactStatus, TimeSlot } from "@/lib/supabase/types";
 import { weeklySlotRuleSchema } from "@/lib/validations";
 import { DateTime } from "luxon";
 
@@ -152,11 +152,31 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
   if (!parsed.success) return;
 
   const supabase = getSupabaseServer();
-  const { data: bookingBefore } = await supabase
+  const { data: bookingBeforeRaw } = await supabase
     .from("bookings")
-    .select("id, first_name, last_name, email, status, slot:time_slots(start_at, end_at)")
+    .select("id, slot_id, first_name, last_name, email, status")
     .eq("id", parsed.data.id)
     .maybeSingle();
+  const bookingBefore = bookingBeforeRaw as {
+    id: string;
+    slot_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    status: BookingStatus;
+  } | null;
+
+  if (!bookingBefore) return;
+
+  let slotBefore: Pick<TimeSlot, "start_at" | "end_at"> | null = null;
+  if (bookingBefore.slot_id) {
+    const { data: slotRaw } = await supabase
+      .from("time_slots")
+      .select("start_at, end_at")
+      .eq("id", bookingBefore.slot_id)
+      .maybeSingle();
+    slotBefore = (slotRaw as Pick<TimeSlot, "start_at" | "end_at"> | null) ?? null;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
@@ -164,17 +184,17 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
     .update({ status: parsed.data.status as BookingStatus })
     .eq("id", parsed.data.id);
 
-  const slot =
-    bookingBefore?.slot && !Array.isArray(bookingBefore.slot) ? bookingBefore.slot : null;
   const shouldSendCancelMail =
-    parsed.data.status === "CANCELLED" && bookingBefore?.status !== "CANCELLED" && !!slot;
+    parsed.data.status === "CANCELLED" &&
+    bookingBefore.status !== "CANCELLED" &&
+    !!slotBefore;
 
-  if (shouldSendCancelMail && bookingBefore && slot) {
+  if (shouldSendCancelMail && slotBefore) {
     await sendBookingCancelledEmail({
       firstName: bookingBefore.first_name,
       lastName: bookingBefore.last_name,
       email: bookingBefore.email,
-      whenLabel: formatZurichTimeRange(slot.start_at, slot.end_at),
+      whenLabel: formatZurichTimeRange(slotBefore.start_at, slotBefore.end_at),
     });
   }
 
