@@ -129,7 +129,8 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
   }
 
   if (insertRows.length > 0) {
-    await supabase.from("time_slots").insert(insertRows);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("time_slots").insert(insertRows);
   }
 
   revalidatePath("/admin/slots");
