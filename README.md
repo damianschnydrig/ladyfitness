@@ -1,11 +1,10 @@
 # Lady Fitness Bremgarten
 
-Eine **Next.js 15**-App (Marketing, Buchen, Kontakt, Admin). **Ein** deploybarer App-Ordner: `studio-booking/` (dort liegt `package.json`).
+Eine **Next.js 15**-App (Marketing, Buchen, Kontakt, Admin). **Variante A:** Das **Git-Repo-Root** ist der **einzige** deploybare App-Root — dort liegen direkt `package.json`, `src/`, `public/`, `next.config.ts`, `server.js`, `supabase/`.
 
 ## Lokal entwickeln
 
 ```bash
-cd studio-booking
 npm install
 # .env aus .env.example anlegen
 npm run dev
@@ -16,29 +15,29 @@ Standard: [http://localhost:3000](http://localhost:3000)
 ## Build (lokal)
 
 ```bash
-cd studio-booking
 npm run build
 ```
 
-Es gibt **kein** `output: "standalone"`, **kein** `copy-standalone-assets.js`, **kein** `public/studio-booking`-Spiegel im Build-Pfad. `tsconfig.json` schliesst `public/studio-booking/**` aus (falls auf dem Server je wieder ein alter Ordner auftaucht).
+`package.json` → `"build": "next build"` (ohne Zusatzskripte). Es gibt **kein** `output: "standalone"`, **kein** `copy-standalone-assets.js`, **kein** `public/studio-booking`-Spiegel im Build-Pfad. `tsconfig.json` schliesst `public/studio-booking/**` aus (falls auf dem Server je wieder ein alter Ordner auftaucht).
 
-## Plesk (Node.js) — feste Einstellungen
+## Plesk (Node.js) — feste Einstellungen (Variante A)
 
 | Feld | Wert |
 |------|------|
-| **Anwendungsstamm** (Application root) | `/var/www/vhosts/<domain>/httpdocs/studio-booking` — Ordner, in dem `package.json` und `server.js` liegen |
-| **Dokumentenstamm** (Document root) | typisch `/var/www/vhosts/<domain>/httpdocs` (Webserver-Docroot der Domain); die Next-App wird vom **Node-Prozess** bedient, nicht aus statischen Dateien unter `public/` „kompiliert“ |
+| **Git-Deploy-Ziel** (Repository-Pfad) | Ordner, in dem nach Pull `package.json` im **Root** liegt — typisch `/var/www/vhosts/ladyfitness-bremgarten.ch/httpdocs` (wenn das Repo direkt dort geklont wird) **oder** ein Unterordner wie `/var/www/vhosts/.../ladyfitness` — entscheidend: **kein** zusätzlicher `studio-booking/`-Unterordner mehr |
+| **Anwendungsstamm** (Node.js Application root) | **derselbe** Ordner wie das Git-Deploy-Ziel (dort `package.json`, `server.js`) |
+| **Dokumentenstamm** (Document root) | typisch dieselbe Domain-Docroot (`httpdocs`); die App wird vom **Node-Prozess** bedient |
 | **Anwendungsstartdatei** | `server.js` (im Anwendungsstamm) — startet `next start` inkl. `PORT` aus der Umgebung |
 | **Anwendungsmodus** | `production` |
 
-Alternative Startdatei (wenn Plesk `npm` unterstützt): `npm` mit Argument `start` und Arbeitsverzeichnis = Anwendungsstamm — dann ist `package.json` → `"start": "next start"` massgebend.
+Alternative Startdatei (wenn Plesk `npm` unterstützt): `npm` mit Argument `start` und Arbeitsverzeichnis = Anwendungsstamm.
 
 ## Server — genau 4 Deploy-Schritte
 
-Im SSH-Terminal (Pfad anpassen):
+Im SSH-Terminal (Pfad = **Ihr** Application root, z. B. `httpdocs`):
 
 ```bash
-cd /var/www/vhosts/ladyfitness-bremgarten.ch/httpdocs/studio-booking
+cd /var/www/vhosts/ladyfitness-bremgarten.ch/httpdocs
 git pull
 npm install
 npm run build
@@ -55,6 +54,9 @@ Einmalig bei Altlasten: falls `public/studio-booking` existiert → `rm -rf publ
 - **`src/app/api/auth/[...nextauth]/route.ts`:** `export const runtime = "nodejs"` — NextAuth mit bcrypt etc. läuft nur sinnvoll auf Node.
 - **`src/middleware.ts`:** Läuft auf Edge (Next.js-Standard), importiert aber **kein** `next-auth`/`jose` mehr — nur Cookie-Präsenz für den Admin-Gate. Session/JWT bleiben in den Server-Routen gültig.
 
-## Struktur
+## Struktur (Repo-Root)
 
-- **`studio-booking/`** — gesamte Next.js-Anwendung (`src/`, `public/`, `next.config.ts`, `server.js`)
+- `src/` — App-Router, Actions, Komponenten
+- `public/` — statische Assets
+- `next.config.ts`, `server.js`, `package.json`
+- `supabase/` — Migrationen & Konfiguration
