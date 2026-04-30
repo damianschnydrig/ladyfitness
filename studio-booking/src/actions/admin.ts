@@ -64,9 +64,12 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
   const supabase = getSupabaseServer();
   const activeRules = rows.filter((r) => r.startTime && r.endTime);
 
-  await supabase.from("weekly_slot_rules").delete().eq("booking_type", bookingType);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from("weekly_slot_rules").delete().eq("booking_type", bookingType);
   if (activeRules.length > 0) {
-    await supabase.from("weekly_slot_rules").insert(
+    // Some production environments use stale generated DB types; cast keeps runtime query valid.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("weekly_slot_rules").insert(
       activeRules.map((r) => ({
         booking_type: bookingType,
         weekday: r.weekday,
