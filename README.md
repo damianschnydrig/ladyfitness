@@ -20,7 +20,9 @@ cd studio-booking
 npm run build
 ```
 
-Auf dem Server in `/httpdocs/studio-booking` nach `git pull`: `npm ci`, `npm run build`, dann Node.js neustarten. Start per `npm start` (`next start`), **kein** `basePath` — die App läuft im **Domain-Root**.
+Auf dem Server in `/httpdocs/studio-booking` nach `git pull`: `npm ci`, `npm run build`, dann Node.js neustarten.
+
+Start in Plesk: **Anwendungsstartdatei** `server.js` (liegt im App-Root) — diese Datei startet intern `next start`. Alternativ direkt `npm start` (**kein** `basePath`) — die App läuft im **Domain-Root**.
 
 ## Struktur
 

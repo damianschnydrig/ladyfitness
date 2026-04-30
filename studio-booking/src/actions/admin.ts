@@ -83,13 +83,14 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
     );
   }
 
-  // Nicht gebuchte, automatisch erzeugte Zukunfts-Slots ersetzen.
+  // Zukunfts-Slots dieses Typs vollständig aus Wochenplan neu aufbauen:
+  // alle ungebuchten zukünftigen Slots löschen (unabhängig von generated_by_schedule),
+  // gebuchte Slots bleiben bestehen.
   const nowIso = new Date().toISOString();
   const { data: generatedSlots } = await supabase
     .from("time_slots")
     .select("id")
     .eq("booking_type", bookingType)
-    .eq("generated_by_schedule", true)
     .gt("start_at", nowIso);
   const ids = ((generatedSlots ?? []) as { id: string }[]).map((r) => r.id);
   if (ids.length > 0) {
@@ -119,6 +120,7 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
   }> = [];
 
   for (let day = today; day < horizonEnd; day = day.plus({ days: 1 })) {
+    // Luxon: 1=Montag ... 7=Sonntag, identisch mit DB-Regel (weekly_slot_rules.weekday).
     const weekday = day.weekday;
     const rule = activeRules.find((r) => r.weekday === weekday);
     if (!rule || !rule.startTime || !rule.endTime) continue;

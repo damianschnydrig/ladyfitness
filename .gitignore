@@ -30,5 +30,8 @@ npm-debug.log*
 *.zip
 /dist/
 
+# Verhindert versehentliche „Spiegel“-Deploys unter public/ (hat schon TS-Builds kaputt gemacht)
+studio-booking/public/studio-booking/
+
 # Supabase CLI
 studio-booking/supabase/.temp/

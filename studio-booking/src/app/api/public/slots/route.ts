@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const { data: rawSlots, error } = await supabase
     .from("time_slots")
     .select("id, start_at, end_at, booking_type")
+    .eq("booking_type", type)
     .gt("start_at", now)
     .order("start_at", { ascending: true });
 
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
         id: s.id,
         startAt: s.start_at,
         endAt: s.end_at,
-        bookingType: type,
+        bookingType: s.booking_type,
         available,
       });
       continue;
