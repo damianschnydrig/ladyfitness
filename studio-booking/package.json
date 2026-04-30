@@ -3,12 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3001",
-    "dev:classic": "next dev -p 3001",
-    "build": "node scripts/cleanup-public-mirror.js && next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@react-email/components": "^1.0.10",
@@ -22,7 +20,6 @@
     "react-dom": "^19.0.0",
     "react-email": "^5.2.10",
     "resend": "^6.9.4",
-    "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -32,7 +29,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "archiver": "^7.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.15",
     "postcss": "^8",

@@ -1,6 +1,10 @@
 # Dependencies (Root: z. B. http-server; niemals committen)
 /node_modules/
 
+# Next.js App (studio-booking)
+studio-booking/node_modules/
+studio-booking/.next/
+
 # Betriebssystem
 .DS_Store
 Thumbs.db
