@@ -135,6 +135,41 @@ export async function sendContactEmails(payload: {
     from,
     to: operator,
     subject: `[Lady Fitness] Kontakt: ${payload.subject}`,
+    replyTo: payload.email,
     html: operatorHtml,
+  });
+}
+
+export async function sendBookingCancelledEmail(payload: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  whenLabel: string;
+}) {
+  const resend = getResend();
+  const subject = "Ihr Termin bei Lady Fitness wurde storniert";
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#222;">
+      <p>Guten Tag ${payload.firstName} ${payload.lastName},</p>
+      <p>Ihr Termin am <strong>${payload.whenLabel}</strong> wurde storniert.</p>
+      <p>Bei Fragen antworten Sie bitte direkt auf diese E-Mail.</p>
+      <p>Freundliche Grüsse<br/>Lady Fitness Bremgarten</p>
+    </div>
+  `;
+
+  if (!resend) {
+    console.warn(
+      `[mail] RESEND_API_KEY fehlt — Storno-Mail nicht automatisch versendet. Fallback: mailto:${payload.email}?subject=${encodeURIComponent(
+        subject
+      )}`
+    );
+    return;
+  }
+
+  await resend.emails.send({
+    from: mailFrom(),
+    to: payload.email,
+    subject,
+    html,
   });
 }

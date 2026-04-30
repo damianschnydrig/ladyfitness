@@ -17,6 +17,7 @@ export interface TimeSlot {
   start_at: string;
   end_at: string;
   booking_type: BookingType;
+  generated_by_schedule: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +58,16 @@ export interface ContactInquiry {
   updated_at: string;
 }
 
+export interface WeeklySlotRule {
+  id: string;
+  booking_type: BookingType;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Supabase Database type — exaktes Format für createClient<Database>
 export type Database = {
   public: {
@@ -88,6 +99,7 @@ export type Database = {
           start_at: string;
           end_at: string;
           booking_type: BookingType;
+          generated_by_schedule?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -96,6 +108,29 @@ export type Database = {
           start_at?: string;
           end_at?: string;
           booking_type?: BookingType;
+          generated_by_schedule?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      weekly_slot_rules: {
+        Row: WeeklySlotRule;
+        Insert: {
+          id?: string;
+          booking_type: BookingType;
+          weekday: number;
+          start_time: string;
+          end_time: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_type?: BookingType;
+          weekday?: number;
+          start_time?: string;
+          end_time?: string;
           created_at?: string;
           updated_at?: string;
         };

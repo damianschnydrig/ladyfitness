@@ -2,14 +2,25 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   type ContactActionResult,
   createContactInquiry,
 } from "@/actions/contact";
 
-export function ContactForm() {
+type Props = {
+  formToken: string;
+};
+
+type SubjectValue = "PROBETRAINING" | "PERSONAL_TRAINING" | "GENERAL" | "CANCELLATION";
+
+export function ContactForm({ formToken }: Props) {
   const router = useRouter();
   const tsRef = useRef<HTMLInputElement>(null);
+  const [subject, setSubject] = useState<SubjectValue>("GENERAL");
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [challengeA, setChallengeA] = useState<number | null>(null);
+  const [challengeB, setChallengeB] = useState<number | null>(null);
 
   const [state, formAction, pending] = useActionState<
     ContactActionResult | null,
@@ -21,6 +32,9 @@ export function ContactForm() {
     if (tsRef.current) {
       tsRef.current.value = String(Date.now());
     }
+    // Dynamische JS-Challenge (optional): ohne JS wird dieses Feld nie gesetzt.
+    setChallengeA(Math.floor(Math.random() * 6) + 2);
+    setChallengeB(Math.floor(Math.random() * 6) + 2);
   }, []);
 
   // Bei Erfolg mit DB-ID → Bestätigungsseite
@@ -29,6 +43,18 @@ export function ContactForm() {
       router.push(`/kontakt/bestaetigung?id=${state.id}`);
     }
   }, [state, router]);
+
+  useEffect(() => {
+    if (!showCancellationModal) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowCancellationModal(false);
+        setSubject("GENERAL");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showCancellationModal]);
 
   const fields = (!state?.ok && state?.fields) ? state.fields : {};
   const emailSent = state?.ok && "emailSent" in state;
@@ -97,16 +123,17 @@ export function ContactForm() {
 
       <form action={formAction} className="space-y-5">
         {/* Honeypot: für Menschen unsichtbar, Bots füllen es aus */}
-        <input
-          type="text"
-          name="website"
-          tabIndex={-1}
-          autoComplete="off"
-          className="absolute left-[-9999px] h-0 w-0 opacity-0"
-          aria-hidden="true"
-        />
+        <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
+          <label htmlFor="website">Website</label>
+          <input id="website" type="text" name="website" tabIndex={-1} autoComplete="off" />
+        </div>
         {/* Timing-Timestamp */}
         <input type="hidden" name="_ts" ref={tsRef} />
+        {/* Einmaliges Form-Token (CSRF/Replay-Schutz) */}
+        <input type="hidden" name="_formToken" value={formToken} />
+        <input type="hidden" name="_jsChallengeEnabled" value={challengeA && challengeB ? "1" : "0"} />
+        <input type="hidden" name="_jsChallengeA" value={challengeA ?? ""} />
+        <input type="hidden" name="_jsChallengeB" value={challengeB ?? ""} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Vorname *" error={fields.firstName}>
@@ -145,11 +172,24 @@ export function ContactForm() {
           />
         </Field>
         <Field label="Betreff *" error={fields.subject}>
-          <input
+          <select
             required
             name="subject"
+            value={subject}
+            onChange={(e) => {
+              const next = e.target.value as SubjectValue;
+              if (next === "CANCELLATION") {
+                setShowCancellationModal(true);
+              }
+              setSubject(next);
+            }}
             className={`field${fields.subject ? " border-red-400" : ""}`}
-          />
+          >
+            <option value="PROBETRAINING">Probetraining</option>
+            <option value="PERSONAL_TRAINING">Personal Training</option>
+            <option value="GENERAL">Allgemeine Anfrage</option>
+            <option value="CANCELLATION">Kündigung</option>
+          </select>
         </Field>
         <Field label="Ihre Nachricht *" error={fields.message}>
           <textarea
@@ -159,6 +199,16 @@ export function ContactForm() {
             className={`field resize-y min-h-[140px]${fields.message ? " border-red-400" : ""}`}
           />
         </Field>
+        {challengeA && challengeB ? (
+          <Field label={`Sicherheitsfrage: Was ist ${challengeA} + ${challengeB}?`} error={fields.challenge}>
+            <input
+              name="_jsChallengeAnswer"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className={`field${fields.challenge ? " border-red-400" : ""}`}
+            />
+          </Field>
+        ) : null}
         <button
           type="submit"
           disabled={pending}
@@ -174,6 +224,29 @@ export function ContactForm() {
           verwenden.
         </p>
       </form>
+
+      {showCancellationModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="cancel-title" className="w-full max-w-xl bg-white p-6 shadow-xl">
+            <h3 id="cancel-title" className="text-lg font-semibold text-brand-dark">
+              ⚠️ Wichtiger Hinweis zur Kündigung
+            </h3>
+            <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-brand-dark">
+              {"Kündigungen sind ausschliesslich schriftlich möglich:\n\n📧 Per E-Mail an: info@ladyfitness-bremgarten.ch\n   → Bitte ein unterschriebenes Kündigungsschreiben\n     als PDF-Anhang beifügen.\n\n📮 Per Brief (Post) an:\n   Lady Fitness Bremgarten\n   Zürcherstrasse 7\n   5620 Bremgarten\n   → Handschriftlich unterschrieben.\n\nBitte beachten Sie die Kündigungsfristen gemäss Ihrem\nVertrag und unseren AGB. Eine Kündigung ist jeweils auf\ndas Ende der vereinbarten Vertragslaufzeit möglich.\n\nDas Kontaktformular gilt nicht als rechtsgültige Kündigung."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCancellationModal(false);
+                setSubject("GENERAL");
+              }}
+              className="mt-5 w-full bg-brand-pink px-4 py-2 text-sm font-bold uppercase tracking-wider text-white hover:bg-brand-pink-dark"
+            >
+              Verstanden
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { sendContactEmails } from "@/lib/mail";
+import { checkRateLimit, consumeOneTimeFormToken, containsBlockedTerms, extractClientIp } from "@/lib/form-security";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { contactCreateSchema } from "@/lib/validations";
 
@@ -19,8 +21,16 @@ function formToObject(formData: FormData) {
     subject: formData.get("subject"),
     message: formData.get("message"),
     website: formData.get("website") || undefined,
+    challenge: formData.get("_jsChallengeAnswer") || undefined,
   };
 }
+
+const SUBJECT_LABELS: Record<string, string> = {
+  PROBETRAINING: "Probetraining",
+  PERSONAL_TRAINING: "Personal Training",
+  GENERAL: "Allgemeine Anfrage",
+  CANCELLATION: "Kündigung",
+};
 
 export async function createContactInquiry(
   _prev: ContactActionResult | null,
@@ -28,18 +38,51 @@ export async function createContactInquiry(
 ): Promise<ContactActionResult> {
   // Honeypot: Bot hat das versteckte Website-Feld ausgefüllt
   if (formData.get("website")) {
-    await new Promise((r) => setTimeout(r, 1200));
-    return { ok: true, emailSent: true }; // Bot täuschen: scheinbarer Erfolg
+    return { ok: true, emailSent: true }; // stille Ablehnung
   }
 
-  // Timing-Check: Formular muss mind. 3 Sekunden ausgefüllt worden sein
+  // Timing-Check: Formular muss mind. 5 Sekunden ausgefüllt worden sein
   const ts = formData.get("_ts");
   if (ts) {
     const loadedAt = parseInt(ts as string, 10);
     const elapsed = Date.now() - loadedAt;
-    if (elapsed < 3000) {
-      await new Promise((r) => setTimeout(r, 1000));
-      return { ok: true, emailSent: true }; // Bot täuschen
+    if (!Number.isFinite(loadedAt) || elapsed < 5000) {
+      return {
+        ok: false,
+        message:
+          "Ihre Anfrage konnte nicht gesendet werden. Bitte nehmen Sie sich kurz Zeit zum Ausfüllen des Formulars und versuchen Sie es erneut.",
+      };
+    }
+  }
+
+  // Einmaliges Form-Token (CSRF + Replay-Schutz)
+  const formToken = formData.get("_formToken");
+  if (!consumeOneTimeFormToken("contact", typeof formToken === "string" ? formToken : null)) {
+    return { ok: true, emailSent: true }; // absichtlich still
+  }
+
+  // IP-basiertes Rate Limiting
+  const h = await headers();
+  const ip = extractClientIp(h.get("x-forwarded-for") ?? h.get("x-real-ip") ?? h.get("cf-connecting-ip"));
+  const rl = checkRateLimit(ip, "contact-form", 3, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return {
+      ok: false,
+      message: "Bitte versuchen Sie es später erneut.",
+    };
+  }
+
+  // Unsichtbare JS-Challenge: nur prüfen, wenn JS den Modus aktiviert hat.
+  if (formData.get("_jsChallengeEnabled") === "1") {
+    const a = Number(formData.get("_jsChallengeA"));
+    const b = Number(formData.get("_jsChallengeB"));
+    const answer = Number(formData.get("_jsChallengeAnswer"));
+    if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(answer) || answer !== a + b) {
+      return {
+        ok: false,
+        message: "Bitte lösen Sie die Sicherheitsfrage korrekt.",
+        fields: { challenge: "Antwort ist nicht korrekt." },
+      };
     }
   }
 
@@ -60,6 +103,13 @@ export async function createContactInquiry(
   }
 
   const d = parsed.data;
+  if (containsBlockedTerms(d.message)) {
+    return {
+      ok: false,
+      message: "Ihre Anfrage konnte nicht verarbeitet werden. Bitte formulieren Sie die Nachricht ohne Links oder Werbeinhalte.",
+      fields: { message: "Bitte entfernen Sie werbliche oder verdächtige Begriffe." },
+    };
+  }
 
   // E-Mail ZUERST senden — das ist das Wichtigste
   let emailOk = false;
@@ -69,7 +119,7 @@ export async function createContactInquiry(
       lastName: d.lastName,
       email: d.email.trim(),
       phone: d.phone.trim(),
-      subject: d.subject.trim(),
+      subject: SUBJECT_LABELS[d.subject] ?? "Allgemeine Anfrage",
       message: d.message.trim(),
     });
     emailOk = true;
@@ -88,7 +138,7 @@ export async function createContactInquiry(
         last_name: d.lastName,
         email: d.email.trim().toLowerCase(),
         phone: d.phone.trim(),
-        subject: d.subject.trim(),
+        subject: SUBJECT_LABELS[d.subject] ?? "Allgemeine Anfrage",
         message: d.message.trim(),
         category: "GENERAL",
         status: "NEW",

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { adminUpdateBookingStatus } from "@/actions/admin";
+import { adminDeleteBooking, adminUpdateBookingStatus } from "@/actions/admin";
+import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 import { formatZurichTimeRange } from "@/lib/datetime";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import type { BookingWithSlot } from "@/lib/supabase/types";
@@ -77,11 +78,12 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                 <th className="px-4 py-3">Person</th>
                 <th className="px-4 py-3">Kontakt</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Aktion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border">
               {bookings.map((b) => (
-                <tr key={b.id} className="align-top">
+                <tr key={b.id} id={`booking-${b.id}`} className="align-top">
                   <td className="px-4 py-3">
                     <TypeBadge type={b.type} />
                   </td>
@@ -120,12 +122,30 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
                       </button>
                     </form>
                   </td>
+                  <td className="px-4 py-3">
+                    <form action={adminDeleteBooking}>
+                      <input type="hidden" name="id" value={b.id} />
+                      <ConfirmDeleteButton
+                        label="🗑 Löschen"
+                        confirmMessage="Wirklich löschen?"
+                        className="inline-flex border border-red-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-red-700 hover:bg-red-50"
+                      />
+                    </form>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <div className="rounded border border-brand-border bg-white p-4 text-xs text-brand-muted">
+        <p>
+          <strong>Legende:</strong> Bestätigt = Termin findet statt. Storniert = Termin abgesagt,
+          E-Mail wird automatisch versendet (oder Fallback-Log bei fehlender Mail-Konfiguration).
+          Abgeschlossen = Termin wurde durchgeführt.
+        </p>
+      </div>
     </div>
   );
 }

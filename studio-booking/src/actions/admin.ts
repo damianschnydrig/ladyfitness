@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/auth";
-import { parseZurichWallClock } from "@/lib/datetime";
+import { formatZurichTimeRange } from "@/lib/datetime";
+import { sendBookingCancelledEmail } from "@/lib/mail";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import type { BookingStatus, ContactStatus } from "@/lib/supabase/types";
-import { slotCreateSchema, slotDeleteSchema } from "@/lib/validations";
+import { weeklySlotRuleSchema } from "@/lib/validations";
+import { DateTime } from "luxon";
 
 async function requireAdmin() {
   const session = await auth();
@@ -16,67 +18,116 @@ async function requireAdmin() {
   return session;
 }
 
-export async function adminCreateSlot(formData: FormData): Promise<void> {
-  await requireAdmin();
+type WeeklyRuleInput = {
+  weekday: number;
+  startTime?: string;
+  endTime?: string;
+};
 
-  const parsed = slotCreateSchema.safeParse({
-    date: formData.get("date"),
-    startTime: formData.get("startTime"),
-    endTime: formData.get("endTime"),
-    bookingType: formData.get("bookingType"),
-  });
+function generateHourlyStarts(dayStart: DateTime, startHHmm: string, endHHmm: string): DateTime[] {
+  const [startHour, startMinute] = startHHmm.split(":").map(Number);
+  const [endHour, endMinute] = endHHmm.split(":").map(Number);
+  const start = dayStart.set({ hour: startHour, minute: startMinute, second: 0, millisecond: 0 });
+  const end = dayStart.set({ hour: endHour, minute: endMinute, second: 0, millisecond: 0 });
 
-  if (!parsed.success) {
-    console.warn("[adminCreateSlot]", parsed.error.flatten());
-    return;
+  const out: DateTime[] = [];
+  let cursor = start;
+  while (cursor < end) {
+    out.push(cursor);
+    cursor = cursor.plus({ hours: 1 });
   }
-
-  const { date, startTime, endTime, bookingType } = parsed.data;
-
-  let startAt: Date;
-  let endAt: Date;
-  try {
-    startAt = parseZurichWallClock(date, startTime);
-    endAt = parseZurichWallClock(date, endTime);
-  } catch {
-    console.warn("[adminCreateSlot] parse Zeit");
-    return;
-  }
-
-  if (endAt <= startAt || startAt.getTime() <= Date.now()) {
-    return;
-  }
-
-  const supabase = getSupabaseServer();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from("time_slots").insert({
-    start_at: startAt.toISOString(),
-    end_at: endAt.toISOString(),
-    booking_type: bookingType,
-  });
-
-  revalidatePath("/admin/slots");
-  revalidatePath("/admin/calendar");
-  revalidatePath("/buchen");
+  return out;
 }
 
-export async function adminDeleteSlot(formData: FormData): Promise<void> {
+export async function adminSaveWeeklyAvailability(formData: FormData): Promise<void> {
   await requireAdmin();
-  const parsed = slotDeleteSchema.safeParse({ id: formData.get("id") });
-  if (!parsed.success) return;
+  const bookingType = formData.get("bookingType");
+  if (bookingType !== "PROBETRAINING" && bookingType !== "PERSONAL_TRAINING") return;
+
+  const rows: WeeklyRuleInput[] = [];
+  for (let weekday = 1; weekday <= 7; weekday++) {
+    rows.push({
+      weekday,
+      startTime: (formData.get(`day_${weekday}_start`) as string) || undefined,
+      endTime: (formData.get(`day_${weekday}_end`) as string) || undefined,
+    });
+  }
+
+  for (const row of rows) {
+    const parsed = weeklySlotRuleSchema.safeParse(row);
+    if (!parsed.success) {
+      console.warn("[adminSaveWeeklyAvailability]", parsed.error.flatten());
+      return;
+    }
+  }
 
   const supabase = getSupabaseServer();
+  const activeRules = rows.filter((r) => r.startTime && r.endTime);
 
-  // Nur löschen wenn kein Booking vorhanden
-  const { data: existing } = await supabase
-    .from("bookings")
+  await supabase.from("weekly_slot_rules").delete().eq("booking_type", bookingType);
+  if (activeRules.length > 0) {
+    await supabase.from("weekly_slot_rules").insert(
+      activeRules.map((r) => ({
+        booking_type: bookingType,
+        weekday: r.weekday,
+        start_time: r.startTime!,
+        end_time: r.endTime!,
+      })),
+    );
+  }
+
+  // Nicht gebuchte, automatisch erzeugte Zukunfts-Slots ersetzen.
+  const nowIso = new Date().toISOString();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: generatedSlots } = await (supabase as any)
+    .from("time_slots")
     .select("id")
-    .eq("slot_id", parsed.data.id)
-    .maybeSingle();
+    .eq("booking_type", bookingType)
+    .eq("generated_by_schedule", true)
+    .gt("start_at", nowIso);
+  const ids = ((generatedSlots ?? []) as { id: string }[]).map((r) => r.id);
+  if (ids.length > 0) {
+    const { data: used } = await supabase.from("bookings").select("slot_id").in("slot_id", ids);
+    const usedSet = new Set(((used ?? []) as { slot_id: string }[]).map((u) => u.slot_id));
+    const deletable = ids.filter((id) => !usedSet.has(id));
+    if (deletable.length > 0) {
+      await supabase.from("time_slots").delete().in("id", deletable);
+    }
+  }
 
-  if (existing) return;
+  const zone = "Europe/Zurich";
+  const today = DateTime.now().setZone(zone).startOf("day");
+  const horizonEnd = today.plus({ weeks: 16 });
+  const { data: existingRange } = await supabase
+    .from("time_slots")
+    .select("start_at")
+    .eq("booking_type", bookingType)
+    .gte("start_at", today.toUTC().toISO()!)
+    .lt("start_at", horizonEnd.toUTC().toISO()!);
+  const existingStartSet = new Set(((existingRange ?? []) as { start_at: string }[]).map((r) => r.start_at));
+  const insertRows: Array<{ start_at: string; end_at: string; booking_type: string; generated_by_schedule: boolean }> = [];
 
-  await supabase.from("time_slots").delete().eq("id", parsed.data.id);
+  for (let day = today; day < horizonEnd; day = day.plus({ days: 1 })) {
+    const weekday = day.weekday;
+    const rule = activeRules.find((r) => r.weekday === weekday);
+    if (!rule || !rule.startTime || !rule.endTime) continue;
+    const starts = generateHourlyStarts(day, rule.startTime, rule.endTime);
+    for (const slotStart of starts) {
+      if (slotStart.toMillis() <= Date.now()) continue;
+      const startIso = slotStart.toUTC().toISO()!;
+      if (existingStartSet.has(startIso)) continue;
+      insertRows.push({
+        start_at: startIso,
+        end_at: slotStart.plus({ hours: 1 }).toUTC().toISO()!,
+        booking_type: bookingType,
+        generated_by_schedule: true,
+      });
+    }
+  }
+
+  if (insertRows.length > 0) {
+    await supabase.from("time_slots").insert(insertRows);
+  }
 
   revalidatePath("/admin/slots");
   revalidatePath("/admin/calendar");
@@ -97,15 +148,37 @@ export async function adminUpdateBookingStatus(formData: FormData): Promise<void
   if (!parsed.success) return;
 
   const supabase = getSupabaseServer();
+  const { data: bookingBefore } = await supabase
+    .from("bookings")
+    .select("id, first_name, last_name, email, status, slot:time_slots(start_at, end_at)")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from("bookings")
     .update({ status: parsed.data.status as BookingStatus })
     .eq("id", parsed.data.id);
 
+  const slot =
+    bookingBefore?.slot && !Array.isArray(bookingBefore.slot) ? bookingBefore.slot : null;
+  const shouldSendCancelMail =
+    parsed.data.status === "CANCELLED" && bookingBefore?.status !== "CANCELLED" && !!slot;
+
+  if (shouldSendCancelMail && bookingBefore && slot) {
+    await sendBookingCancelledEmail({
+      firstName: bookingBefore.first_name,
+      lastName: bookingBefore.last_name,
+      email: bookingBefore.email,
+      whenLabel: formatZurichTimeRange(slot.start_at, slot.end_at),
+    });
+  }
+
   revalidatePath("/admin/bookings");
   revalidatePath("/admin/archive");
   revalidatePath("/admin/calendar");
+  revalidatePath("/admin");
+  revalidatePath("/buchen");
 }
 
 const contactStatusSchema = z.object({
@@ -127,6 +200,41 @@ export async function adminUpdateContactStatus(formData: FormData): Promise<void
     .from("contact_inquiries")
     .update({ status: parsed.data.status as ContactStatus })
     .eq("id", parsed.data.id);
+
+  revalidatePath("/admin/contacts");
+  revalidatePath("/admin/archive");
+}
+
+const deleteIdSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export async function adminDeleteBooking(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const parsed = deleteIdSchema.safeParse({
+    id: formData.get("id"),
+  });
+  if (!parsed.success) return;
+
+  const supabase = getSupabaseServer();
+  await supabase.from("bookings").delete().eq("id", parsed.data.id);
+
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/archive");
+  revalidatePath("/admin/calendar");
+  revalidatePath("/admin");
+  revalidatePath("/buchen");
+}
+
+export async function adminDeleteContactInquiry(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const parsed = deleteIdSchema.safeParse({
+    id: formData.get("id"),
+  });
+  if (!parsed.success) return;
+
+  const supabase = getSupabaseServer();
+  await supabase.from("contact_inquiries").delete().eq("id", parsed.data.id);
 
   revalidatePath("/admin/contacts");
   revalidatePath("/admin/archive");

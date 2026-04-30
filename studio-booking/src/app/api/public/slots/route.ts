@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
   const { data: rawSlots, error } = await supabase
     .from("time_slots")
     .select("id, start_at, end_at, booking_type")
-    .eq("booking_type", type)
     .gt("start_at", now)
     .order("start_at", { ascending: true });
 
@@ -37,24 +36,48 @@ export async function GET(req: NextRequest) {
     booking_type: BookingType;
   }[];
 
-  // Gebuchte Slots herausfiltern (Left-join über separaten Query für Zuverlässigkeit)
+  // Gebuchte Slots global laden (buchungstyp-übergreifend).
   const { data: bookedSlotIds } = await supabase
     .from("bookings")
-    .select("slot_id")
-    .eq("type", type);
+    .select("slot_id,status")
+    .neq("status", "CANCELLED");
 
   const bookedSet = new Set(
-    ((bookedSlotIds ?? []) as { slot_id: string }[]).map((b) => b.slot_id)
+    ((bookedSlotIds ?? []) as { slot_id: string; status: string }[]).map((b) => b.slot_id)
   );
 
-  const freeSlots = (slots ?? []).filter((s) => !bookedSet.has(s.id));
+  // Gleiche Zeitfenster zusammenfassen, damit pro Zeitraum nur ein Slot sichtbar ist.
+  // Dadurch verschwinden parallele Doppel-Slots über beide Typen hinweg.
+  const periodMap = new Map<
+    string,
+    {
+      id: string;
+      startAt: string;
+      endAt: string;
+      bookingType: BookingType;
+      available: boolean;
+    }
+  >();
+
+  for (const s of slots) {
+    const key = `${s.start_at}|${s.end_at}`;
+    const current = periodMap.get(key);
+    const available = !bookedSet.has(s.id);
+    if (!current) {
+      periodMap.set(key, {
+        id: s.id,
+        startAt: s.start_at,
+        endAt: s.end_at,
+        bookingType: type,
+        available,
+      });
+      continue;
+    }
+    // Falls einer der Duplikate bereits gebucht ist, gilt das gesamte Zeitfenster als nicht verfügbar.
+    if (!available) current.available = false;
+  }
 
   return NextResponse.json(
-    freeSlots.map((s) => ({
-      id: s.id,
-      startAt: s.start_at,
-      endAt: s.end_at,
-      bookingType: s.booking_type,
-    }))
+    Array.from(periodMap.values()).sort((a, b) => a.startAt.localeCompare(b.startAt))
   );
 }

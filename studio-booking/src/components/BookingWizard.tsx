@@ -2,22 +2,24 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DateTime } from "luxon";
 import {
   type BookingActionResult,
   createBooking,
 } from "@/actions/booking";
-import { formatZurichTimeRange } from "@/lib/datetime";
 
 type SlotDto = {
   id: string;
   startAt: string;
   endAt: string;
   bookingType: string;
+  available: boolean;
 };
 
 type BookingType = "PROBETRAINING" | "PERSONAL_TRAINING";
 
 export function BookingWizard() {
+  const zone = "Europe/Zurich";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [type, setType] = useState<BookingType | null>(() => {
@@ -28,6 +30,10 @@ export function BookingWizard() {
   const [slots, setSlots] = useState<SlotDto[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotId, setSlotId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    DateTime.now().setZone(zone).startOf("month").toFormat("yyyy-MM")
+  );
   const [state, formAction, pending] = useActionState<
     BookingActionResult | null,
     FormData
@@ -50,6 +56,14 @@ export function BookingWizard() {
         if (!cancelled) {
           setSlots(data);
           setSlotId(null);
+          const firstAvailable = data.find((slot) => slot.available);
+          const defaultDate = firstAvailable
+            ? DateTime.fromISO(firstAvailable.startAt, { zone: "utc" }).setZone(zone).toFormat("yyyy-MM-dd")
+            : null;
+          setSelectedDate(defaultDate);
+          if (defaultDate) {
+            setVisibleMonth(defaultDate.slice(0, 7));
+          }
         }
       })
       .catch(() => {
@@ -68,6 +82,18 @@ export function BookingWizard() {
       router.push(`/buchen/bestaetigung?id=${state.bookingId}`);
     }
   }, [state, router]);
+
+  const slotsByDay = slots.reduce<Record<string, SlotDto[]>>((acc, slot) => {
+    const dayKey = DateTime.fromISO(slot.startAt, { zone: "utc" }).setZone(zone).toFormat("yyyy-MM-dd");
+    if (!acc[dayKey]) acc[dayKey] = [];
+    acc[dayKey].push(slot);
+    return acc;
+  }, {});
+  const monthDate = DateTime.fromFormat(visibleMonth, "yyyy-MM", { zone }).startOf("month");
+  const monthStart = monthDate.startOf("month");
+  const calendarStart = monthStart.minus({ days: monthStart.weekday - 1 });
+  const calendarDays = Array.from({ length: 42 }, (_, i) => calendarStart.plus({ days: i }));
+  const selectedDaySlots = selectedDate ? (slotsByDay[selectedDate] ?? []) : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-10">
@@ -146,28 +172,101 @@ export function BookingWizard() {
               .
             </div>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {slots.map((s) => {
-                const label = formatZurichTimeRange(
-                  new Date(s.startAt),
-                  new Date(s.endAt)
-                );
+            <div className="space-y-5">
+              <div className="border border-brand-border bg-white p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleMonth(monthDate.minus({ months: 1 }).toFormat("yyyy-MM"))}
+                    className="border border-brand-border px-2 py-1 text-xs font-bold"
+                  >
+                    ←
+                  </button>
+                  <p className="font-serif text-base text-brand-dark">
+                    {monthDate.setLocale("de-CH").toFormat("LLLL yyyy")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleMonth(monthDate.plus({ months: 1 }).toFormat("yyyy-MM"))}
+                    className="border border-brand-border px-2 py-1 text-xs font-bold"
+                  >
+                    →
+                  </button>
+                </div>
+                <div className="mb-2 grid grid-cols-7 text-center text-[11px] font-semibold uppercase text-brand-muted">
+                  {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((wd) => (
+                    <span key={wd}>{wd}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {calendarDays.map((day) => {
+                    const dayKey = day.toFormat("yyyy-MM-dd");
+                    const inMonth = day.month === monthDate.month;
+                    const hasAvailable = (slotsByDay[dayKey] ?? []).some((slot) => slot.available);
+                    const active = selectedDate === dayKey;
+                    return (
+                      <button
+                        key={dayKey}
+                        type="button"
+                        disabled={!inMonth || !hasAvailable}
+                        onClick={() => {
+                          setSelectedDate(dayKey);
+                          setSlotId(null);
+                        }}
+                        className={`h-9 border text-xs transition ${
+                          active
+                            ? "border-brand-pink bg-brand-pink-light text-brand-pink-dark"
+                            : hasAvailable
+                              ? "border-brand-pink/40 bg-brand-pink/5 text-brand-dark hover:border-brand-pink"
+                              : "cursor-not-allowed border-brand-border/60 bg-brand-alt/50 text-brand-muted/60"
+                        } ${!inMonth ? "opacity-40" : ""}`}
+                      >
+                        {day.day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedDate ? (
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-brand-dark">
+                    Verfügbare Zeiten am{" "}
+                    {DateTime.fromISO(selectedDate, { zone }).setLocale("de-CH").toFormat("cccc, dd.MM.yyyy")}
+                  </p>
+                  {selectedDaySlots.length === 0 ? (
+                    <p className="text-sm text-brand-muted">Für dieses Datum gibt es keine Slots.</p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-sm text-brand-muted">Bitte wählen Sie zuerst ein Datum mit verfügbaren Zeiten.</p>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+                {selectedDaySlots.map((s) => {
                 const selected = slotId === s.id;
+                const disabled = !s.available;
                 return (
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setSlotId(s.id)}
-                    className={`border px-4 py-3 text-left text-sm transition-all ${
+                    disabled={disabled}
+                    onClick={() => !disabled && setSlotId(s.id)}
+                    className={`border px-3 py-2 text-left text-sm transition-all ${
+                      disabled
+                        ? "cursor-not-allowed border-brand-border/70 bg-brand-alt/50 text-brand-muted line-through opacity-70"
+                        : ""
+                    } ${
                       selected
                         ? "border-brand-pink bg-brand-pink-light/60 ring-1 ring-brand-pink"
                         : "border-brand-border hover:border-brand-pink/50"
                     }`}
                   >
-                    {label}
+                    {DateTime.fromISO(s.startAt, { zone: "utc" }).setZone(zone).toFormat("HH:mm")} Uhr
                   </button>
                 );
               })}
+              </div>
             </div>
           )}
         </section>

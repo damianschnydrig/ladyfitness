@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatZurichShort, formatZurichTimeRange } from "@/lib/datetime";
+import { DateTime } from "luxon";
+import { formatZurichTimeRange } from "@/lib/datetime";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import type { BookingWithSlot, ContactInquiry } from "@/lib/supabase/types";
 
@@ -10,15 +11,17 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const now = new Date().toISOString();
+  const now = DateTime.now().setZone("Europe/Zurich");
+  const nowIso = now.toUTC().toISO()!;
+  const in48hIso = now.plus({ hours: 48 }).toUTC().toISO()!;
   const supabase = getSupabaseServer();
 
   const [
     { count: openProbe },
     { count: openPt },
-    { count: newContacts },
-    { data: nextBookingsRaw },
-    { data: recentContactsRaw },
+    { count: newContactsCount },
+    { data: next48hRaw },
+    { data: unreadContactsRaw },
   ] = await Promise.all([
     supabase
       .from("bookings")
@@ -38,30 +41,26 @@ export default async function AdminDashboardPage() {
       .from("bookings")
       .select("*, slot:time_slots(*)")
       .eq("status", "CONFIRMED")
-      .gte("time_slots.start_at", now)
-      .order("created_at", { ascending: true })
-      .limit(10),
+      .gte("time_slots.start_at", nowIso)
+      .lte("time_slots.start_at", in48hIso)
+      .order("time_slots.start_at", { ascending: true }),
     supabase
       .from("contact_inquiries")
       .select("*")
+      .eq("status", "NEW")
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
 
-  const allNextBookings = (nextBookingsRaw ?? []) as BookingWithSlot[];
-  const nextBookings = allNextBookings
-    .filter((b) => b.slot && b.slot.start_at >= now)
-    .sort((a, b) => new Date(a.slot.start_at).getTime() - new Date(b.slot.start_at).getTime())
-    .slice(0, 6);
-
-  const recentContacts = (recentContactsRaw ?? []) as ContactInquiry[];
+  const next48h = ((next48hRaw ?? []) as BookingWithSlot[]).filter((b) => !!b.slot);
+  const unreadContacts = (unreadContactsRaw ?? []) as ContactInquiry[];
 
   return (
     <div className="space-y-10">
       <div>
         <h1 className="font-serif text-2xl text-brand-dark">Übersicht</h1>
         <p className="mt-1 text-sm text-brand-muted">
-          Aktive Anfragen und anstehende Termine auf einen Blick.
+          Fokus auf anstehende Aktionen und neue Anfragen.
         </p>
       </div>
 
@@ -80,7 +79,7 @@ export default async function AdminDashboardPage() {
         />
         <StatCard
           label="Neue Kontaktanfragen"
-          value={newContacts ?? 0}
+          value={newContactsCount ?? 0}
           href="/admin/contacts"
           tone="muted"
         />
@@ -90,62 +89,58 @@ export default async function AdminDashboardPage() {
         <div className="border border-brand-border bg-white p-5">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-brand-dark">
-              Nächste Termine
+              Anstehende Termine (nächste 48h)
             </h2>
-            <Link
-              href="/admin/calendar"
-              className="text-xs font-semibold text-brand-pink hover:underline"
-            >
-              Kalender →
+            <Link href="/admin/bookings" className="text-xs font-semibold text-brand-pink hover:underline">
+              Alle Buchungen →
             </Link>
           </div>
-          {nextBookings.length === 0 ? (
-            <p className="mt-4 text-sm text-brand-muted">Keine anstehenden Buchungen.</p>
+          {next48h.length === 0 ? (
+            <p className="mt-4 text-sm text-brand-muted">Keine anstehenden Termine in den nächsten 48 Stunden.</p>
           ) : (
-            <ul className="mt-4 divide-y divide-brand-border text-sm">
-              {nextBookings.map((b) => (
-                <li key={b.id} className="flex flex-col gap-1 py-3 first:pt-0">
-                  <span className="text-xs font-bold uppercase tracking-wide text-brand-pink">
+            <div className="mt-4 space-y-2">
+              {next48h.map((b) => (
+                <article key={b.id} className="border border-brand-border p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-brand-pink">
                     {b.type === "PROBETRAINING" ? "Probetraining" : "Personal Training"}
-                  </span>
-                  <span className="font-medium text-brand-dark">
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-brand-dark">
                     {formatZurichTimeRange(b.slot.start_at, b.slot.end_at)}
-                  </span>
-                  <span className="text-brand-muted">
-                    {b.first_name} {b.last_name} · {b.email}
-                  </span>
-                </li>
+                  </p>
+                  <p className="text-sm text-brand-muted">
+                    {b.first_name} {b.last_name}
+                  </p>
+                  <Link href={`/admin/bookings#booking-${b.id}`} className="mt-2 inline-block text-xs font-semibold text-brand-pink hover:underline">
+                    Zur Buchung →
+                  </Link>
+                </article>
               ))}
-            </ul>
+            </div>
           )}
         </div>
 
         <div className="border border-brand-border bg-white p-5">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-brand-dark">
-              Letzte Kontaktanfragen
+              Neueste Kontaktanfragen
             </h2>
-            <Link
-              href="/admin/contacts"
-              className="text-xs font-semibold text-brand-pink hover:underline"
-            >
+            <Link href="/admin/contacts" className="text-xs font-semibold text-brand-pink hover:underline">
               Alle →
             </Link>
           </div>
-          {recentContacts.length === 0 ? (
-            <p className="mt-4 text-sm text-brand-muted">Keine Einträge.</p>
+          {unreadContacts.length === 0 ? (
+            <p className="mt-4 text-sm text-brand-muted">Keine neuen Anfragen.</p>
           ) : (
-            <ul className="mt-4 divide-y divide-brand-border text-sm">
-              {recentContacts.map((c) => (
-                <li key={c.id} className="py-3 first:pt-0">
-                  <span className="text-xs font-bold uppercase text-brand-dark">Kontakt</span>
-                  <p className="mt-1 font-medium">{c.subject}</p>
-                  <p className="text-brand-muted">
-                    {c.first_name} {c.last_name} · {formatZurichShort(c.created_at)}
+            <div className="mt-4 space-y-2">
+              {unreadContacts.map((c) => (
+                <article key={c.id} className="border border-brand-border p-3">
+                  <p className="text-sm font-medium text-brand-dark">{c.subject}</p>
+                  <p className="mt-1 text-sm text-brand-muted">
+                    {c.first_name} {c.last_name}
                   </p>
-                </li>
+                </article>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </section>
@@ -171,10 +166,7 @@ function StatCard({
         ? "border-brand-dark/20"
         : "border-brand-border";
   return (
-    <Link
-      href={href}
-      className={`block border-2 bg-white p-5 transition hover:shadow-soft ${border}`}
-    >
+    <Link href={href} className={`block border-2 bg-white p-5 transition hover:shadow-soft ${border}`}>
       <p className="text-xs font-semibold uppercase tracking-wider text-brand-muted">{label}</p>
       <p className="mt-2 font-serif text-4xl text-brand-dark">{value}</p>
     </Link>
