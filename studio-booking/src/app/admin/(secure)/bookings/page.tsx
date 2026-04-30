@@ -36,7 +36,7 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
 
   const { data: rawBookings } = await query;
 
-  const bookings = ((rawBookings ?? []) as BookingWithSlot[])
+  const bookings = ((rawBookings ?? []) as unknown as BookingWithSlot[])
     .filter((b) => b.slot && b.slot.end_at >= now)
     .sort(
       (a, b) =>

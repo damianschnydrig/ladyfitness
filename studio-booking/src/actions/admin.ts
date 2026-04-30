@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { formatZurichTimeRange } from "@/lib/datetime";
 import { sendBookingCancelledEmail } from "@/lib/mail";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import type { BookingStatus, ContactStatus, TimeSlot } from "@/lib/supabase/types";
+import type { BookingStatus, ContactStatus, Database, TimeSlot } from "@/lib/supabase/types";
 import { weeklySlotRuleSchema } from "@/lib/validations";
 import { DateTime } from "luxon";
 
@@ -41,8 +42,10 @@ function generateHourlyStarts(dayStart: DateTime, startHHmm: string, endHHmm: st
 
 export async function adminSaveWeeklyAvailability(formData: FormData): Promise<void> {
   await requireAdmin();
-  const bookingType = formData.get("bookingType");
-  if (bookingType !== "PROBETRAINING" && bookingType !== "PERSONAL_TRAINING") return;
+  const bookingTypeRaw = formData.get("bookingType");
+  if (bookingTypeRaw !== "PROBETRAINING" && bookingTypeRaw !== "PERSONAL_TRAINING") return;
+  const bookingType: Database["public"]["Tables"]["weekly_slot_rules"]["Insert"]["booking_type"] =
+    bookingTypeRaw;
 
   const rows: WeeklyRuleInput[] = [];
   for (let weekday = 1; weekday <= 7; weekday++) {
@@ -61,15 +64,16 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
     }
   }
 
-  const supabase = getSupabaseServer();
+  const supabase = createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
   const activeRules = rows.filter((r) => r.startTime && r.endTime);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from("weekly_slot_rules").delete().eq("booking_type", bookingType);
+  await supabase.from("weekly_slot_rules").delete().eq("booking_type", bookingType);
   if (activeRules.length > 0) {
-    // Some production environments use stale generated DB types; cast keeps runtime query valid.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("weekly_slot_rules").insert(
+    await supabase.from("weekly_slot_rules").insert(
       activeRules.map((r) => ({
         booking_type: bookingType,
         weekday: r.weekday,
@@ -81,8 +85,7 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
 
   // Nicht gebuchte, automatisch erzeugte Zukunfts-Slots ersetzen.
   const nowIso = new Date().toISOString();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: generatedSlots } = await (supabase as any)
+  const { data: generatedSlots } = await supabase
     .from("time_slots")
     .select("id")
     .eq("booking_type", bookingType)
@@ -108,7 +111,12 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
     .gte("start_at", today.toUTC().toISO()!)
     .lt("start_at", horizonEnd.toUTC().toISO()!);
   const existingStartSet = new Set(((existingRange ?? []) as { start_at: string }[]).map((r) => r.start_at));
-  const insertRows: Array<{ start_at: string; end_at: string; booking_type: string; generated_by_schedule: boolean }> = [];
+  const insertRows: Array<{
+    start_at: string;
+    end_at: string;
+    booking_type: Database["public"]["Tables"]["time_slots"]["Insert"]["booking_type"];
+    generated_by_schedule: boolean;
+  }> = [];
 
   for (let day = today; day < horizonEnd; day = day.plus({ days: 1 })) {
     const weekday = day.weekday;
@@ -129,8 +137,7 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
   }
 
   if (insertRows.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("time_slots").insert(insertRows);
+    await supabase.from("time_slots").insert(insertRows);
   }
 
   revalidatePath("/admin/slots");

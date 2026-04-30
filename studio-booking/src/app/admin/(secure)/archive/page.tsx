@@ -38,9 +38,9 @@ export default async function AdminArchivePage({ searchParams }: Props) {
         .order("updated_at", { ascending: false }),
     ]);
 
-  const pastBookings = (pastBookingsRaw ?? []) as BookingWithSlot[];
-  const closedBookings = (closedBookingsRaw ?? []) as BookingWithSlot[];
-  const archivedContacts = (archivedContactsRaw ?? []) as ContactInquiry[];
+  const pastBookings = (pastBookingsRaw ?? []) as unknown as BookingWithSlot[];
+  const closedBookings = (closedBookingsRaw ?? []) as unknown as BookingWithSlot[];
+  const archivedContacts = (archivedContactsRaw ?? []) as unknown as ContactInquiry[];
 
   const trulyPast = pastBookings.filter(
     (b) => b.slot && new Date(b.slot.end_at).getTime() < new Date(now).getTime()

@@ -52,7 +52,7 @@ export default async function AdminDashboardPage() {
       .limit(5),
   ]);
 
-  const next48h = ((next48hRaw ?? []) as BookingWithSlot[]).filter((b) => !!b.slot);
+  const next48h = ((next48hRaw ?? []) as unknown as BookingWithSlot[]).filter((b) => !!b.slot);
   const unreadContacts = (unreadContactsRaw ?? []) as ContactInquiry[];
 
   return (
