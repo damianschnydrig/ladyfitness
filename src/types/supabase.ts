@@ -44,6 +44,8 @@ export type Database = {
           end_at: string;
           booking_type: Database["public"]["Enums"]["booking_type"];
           generated_by_schedule: boolean;
+          available: boolean;
+          blocked_by_booking_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -53,6 +55,8 @@ export type Database = {
           end_at: string;
           booking_type: Database["public"]["Enums"]["booking_type"];
           generated_by_schedule?: boolean;
+          available?: boolean;
+          blocked_by_booking_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -62,6 +66,8 @@ export type Database = {
           end_at?: string;
           booking_type?: Database["public"]["Enums"]["booking_type"];
           generated_by_schedule?: boolean;
+          available?: boolean;
+          blocked_by_booking_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -206,6 +212,10 @@ export type Database = {
           booking_id: string | null;
           error_message: string | null;
         }[];
+      };
+      unblock_slots_for_booking: {
+        Args: { p_booking_id: string };
+        Returns: number;
       };
     };
     Enums: {

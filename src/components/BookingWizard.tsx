@@ -262,7 +262,11 @@ export function BookingWizard() {
                         : "border-brand-border hover:border-brand-pink/50"
                     }`}
                   >
-                    {DateTime.fromISO(s.startAt, { zone: "utc" }).setZone(zone).toFormat("HH:mm")} Uhr
+                    {new Date(s.startAt).toLocaleTimeString("de-CH", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Europe/Zurich",
+                    })} Uhr
                   </button>
                 );
               })}
@@ -283,6 +287,25 @@ export function BookingWizard() {
               className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
             >
               {state.message}
+              {state.message?.includes("soeben gebucht") || state.message?.includes("nicht mehr verfügbar") ? (
+                <button
+                  type="button"
+                  className="ml-2 font-semibold underline"
+                  onClick={() => {
+                    setSlotId(null);
+                    // Slots neu laden
+                    if (type) {
+                      setSlotsLoading(true);
+                      fetch(`/api/public/slots?type=${type}`)
+                        .then((r) => r.json())
+                        .then((data) => { setSlots(data); setSlotsLoading(false); })
+                        .catch(() => setSlotsLoading(false));
+                    }
+                  }}
+                >
+                  Andere Zeit wählen
+                </button>
+              ) : null}
             </div>
           ) : null}
           <form action={formAction} className="space-y-5">
