@@ -21,34 +21,43 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseServer();
 
   /**
-   * SQL-Equivalent:
+   * SQL-Equivalent (basis):
    *   SELECT id, start_at, end_at, booking_type
    *   FROM time_slots
    *   WHERE booking_type = $type
    *     AND start_at > NOW()
-   *     AND (available IS NULL OR available = TRUE)
-   *     AND id NOT IN (SELECT slot_id FROM bookings WHERE status != 'CANCELLED')
    *   ORDER BY start_at;
+   *
+   * Cross-type blocking via available-Spalte wird automatisch genutzt
+   * sobald Migration 004 in der DB ausgeführt wurde.
    */
   const { data: rawSlots, error } = await supabase
     .from("time_slots")
     .select("id, start_at, end_at, booking_type")
     .eq("booking_type", type)
     .gt("start_at", now)
-    .or("available.is.null,available.eq.true")
-    .order("start_at", { ascending: true });
+    .order("start_at", { ascending: true })
+    .or("available.is.null,available.eq.true");
+
+  let slots: { id: string; start_at: string; end_at: string; booking_type: BookingType }[];
 
   if (error) {
-    console.error("[slots] Supabase Fehler:", error);
-    return NextResponse.json({ error: "Datenbankfehler" }, { status: 500 });
-  }
+    // Fallback: available-Spalte existiert noch nicht → ohne Filter
+    const { data: fallbackSlots, error: fallbackError } = await supabase
+      .from("time_slots")
+      .select("id, start_at, end_at, booking_type")
+      .eq("booking_type", type)
+      .gt("start_at", now)
+      .order("start_at", { ascending: true });
 
-  const allSlots = (rawSlots ?? []) as {
-    id: string;
-    start_at: string;
-    end_at: string;
-    booking_type: BookingType;
-  }[];
+    if (fallbackError) {
+      console.error("[slots] Supabase Fehler:", fallbackError);
+      return NextResponse.json({ error: "Datenbankfehler" }, { status: 500 });
+    }
+    slots = (fallbackSlots ?? []) as typeof slots;
+  } else {
+    slots = (rawSlots ?? []) as typeof slots;
+  }
 
   // Gebuchte Slot-IDs laden (typ-übergreifend)
   const { data: bookedRows } = await supabase
@@ -60,13 +69,18 @@ export async function GET(req: NextRequest) {
     ((bookedRows ?? []) as { slot_id: string }[]).map((b) => b.slot_id)
   );
 
-  // Nur nicht-gebuchte Slots, ohne Duplikate innerhalb desselben Typs
+  // Bereits gebuchte Slots herausfiltern + Duplikate innerhalb desselben Typs entfernen
   const seen = new Set<string>();
-  const result: { id: string; startAt: string; endAt: string; bookingType: BookingType; available: boolean }[] = [];
+  const result: {
+    id: string;
+    startAt: string;
+    endAt: string;
+    bookingType: BookingType;
+    available: boolean;
+  }[] = [];
 
-  for (const s of allSlots) {
+  for (const s of slots) {
     if (bookedSet.has(s.id)) continue;
-    // Duplikate innerhalb desselben Typs überspringen
     const key = `${s.start_at}|${s.booking_type}`;
     if (seen.has(key)) continue;
     seen.add(key);

@@ -138,24 +138,11 @@ export async function adminSaveWeeklyAvailability(
     ((existingRange ?? []) as { start_at: string }[]).map((r) => r.start_at)
   );
 
-  // Gebuchte Zeiten aller Typen (für Cross-Type-Check beim Generieren)
-  const { data: otherBookedRaw } = await supabase
-    .from("bookings")
-    .select("slot:time_slots!inner(start_at, end_at)")
-    .neq("status", "CANCELLED")
-    .gte("time_slots.start_at", today.toUTC().toISO()!);
-  const otherBookedTimes = new Set(
-    ((otherBookedRaw ?? []) as unknown as { slot: { start_at: string; end_at: string } }[])
-      .map((r) => r.slot?.start_at)
-      .filter(Boolean)
-  );
-
   const insertRows: Array<{
     start_at: string;
     end_at: string;
     booking_type: Database["public"]["Tables"]["time_slots"]["Insert"]["booking_type"];
     generated_by_schedule: boolean;
-    available: boolean;
   }> = [];
 
   for (let day = today; day < horizonEnd; day = day.plus({ days: 1 })) {
@@ -167,14 +154,12 @@ export async function adminSaveWeeklyAvailability(
       if (slotStart.toMillis() <= Date.now()) continue;
       const startIso = slotStart.toUTC().toISO()!;
       if (existingStartSet.has(startIso)) continue;
-      // Slot als blocked anlegen wenn die selbe Zeit im anderen Typ gebucht ist
-      const crossBlocked = otherBookedTimes.has(startIso);
       insertRows.push({
         start_at: startIso,
         end_at: slotStart.plus({ hours: 1 }).toUTC().toISO()!,
         booking_type: bookingType,
         generated_by_schedule: true,
-        available: !crossBlocked,
+        // available nicht gesetzt → DB-Default TRUE (nach Migration 004)
       });
     }
   }
