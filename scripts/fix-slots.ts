@@ -1,6 +1,6 @@
 /**
- * SQL-Cleanup und Slot-Regenerierung
- * Aufruf: npm run db:fix-slots
+ * SQL-Cleanup und Slot-Regenerierung (Version ohne .env Abhängigkeit)
+ * Aufruf in Plesk: NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_KEY=... npx tsx scripts/fix-slots.ts
  */
 import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
@@ -10,6 +10,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_KEY;
 
 if (!supabaseUrl || !serviceKey) {
   console.error("❌ Fehlende Env-Variablen: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY");
+  console.log("Bitte die Variablen direkt im Befehl oder in Plesk setzen.");
   process.exit(1);
 }
 
@@ -35,7 +36,6 @@ function generateHourlyStarts(dayStart: DateTime, startHHmm: string, endHHmm: st
 async function run() {
   const nowIso = new Date().toISOString();
 
-  // 1. SQL-CLEANUP: Alle ungebuchten zukünftigen Slots löschen
   console.log("--- 1. SQL-CLEANUP ---");
   const { data: futureSlots } = await supabase
     .from("time_slots")
@@ -62,7 +62,6 @@ async function run() {
   }
   console.log(`✅ Gelöschte ungebuchte Slots: ${deletedCount}`);
 
-  // 2. SLOT-GENERIERUNG FIXEN
   console.log("\n--- 2. SLOT-GENERIERUNG ---");
   const { data: rules } = await supabase.from("weekly_slot_rules").select("*");
   if (!rules || rules.length === 0) {
@@ -101,7 +100,6 @@ async function run() {
     console.log(`✅ ${insertRows.length} neue Slots generiert.`);
   }
 
-  // 3. BEWEIS-ANFORDERUNG
   console.log("\n--- 3. BEWEIS (SQL-ABFRAGE) ---");
   const { data: proof } = await supabase
     .from("time_slots")
