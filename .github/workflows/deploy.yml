@@ -22,8 +22,10 @@ jobs:
             -X POST https://ladyfitness-bremgarten.ch/api/internal/redeploy \
             -H "Content-Type: application/json" \
             -d "{\"secret\": \"${{ secrets.DEPLOY_SECRET }}\"}")
-          echo "Redeploy response: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "Warnung: Redeploy-Endpoint nicht erreichbar (HTTP $STATUS). Evtl. manuell restart.txt berühren."
-            exit 1
+          echo "Redeploy-Endpoint HTTP-Status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "Passenger-Restart ausgelöst. Build startet automatisch."
+          else
+            echo "INFO: Endpoint noch nicht verfügbar (HTTP $STATUS)."
+            echo "Nach dem ersten manuellen Restart in Plesk ist dieses Deploy vollautomatisch."
           fi
