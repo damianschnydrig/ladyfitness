@@ -19,6 +19,7 @@ type SlotDto = {
 type BookingType = "PROBETRAINING" | "PERSONAL_TRAINING";
 
 export function BookingWizard() {
+  const zone = "Europe/Zurich";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [type, setType] = useState<BookingType | null>(() => {
@@ -31,7 +32,7 @@ export function BookingWizard() {
   const [slotId, setSlotId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(() =>
-    DateTime.now().startOf("month").toFormat("yyyy-MM")
+    DateTime.now().setZone(zone).startOf("month").toFormat("yyyy-MM")
   );
   const [state, formAction, pending] = useActionState<
     BookingActionResult | null,
@@ -57,7 +58,7 @@ export function BookingWizard() {
           setSlotId(null);
           const firstAvailable = data.find((slot) => slot.available);
           const defaultDate = firstAvailable
-            ? firstAvailable.startAt.slice(0, 10)
+            ? DateTime.fromISO(firstAvailable.startAt, { zone: "utc" }).setZone(zone).toFormat("yyyy-MM-dd")
             : null;
           setSelectedDate(defaultDate);
           if (defaultDate) {
@@ -83,12 +84,12 @@ export function BookingWizard() {
   }, [state, router]);
 
   const slotsByDay = slots.reduce<Record<string, SlotDto[]>>((acc, slot) => {
-    const dayKey = slot.startAt.slice(0, 10);
+    const dayKey = DateTime.fromISO(slot.startAt, { zone: "utc" }).setZone(zone).toFormat("yyyy-MM-dd");
     if (!acc[dayKey]) acc[dayKey] = [];
     acc[dayKey].push(slot);
     return acc;
   }, {});
-  const monthDate = DateTime.fromFormat(visibleMonth, "yyyy-MM").startOf("month");
+  const monthDate = DateTime.fromFormat(visibleMonth, "yyyy-MM", { zone }).startOf("month");
   const monthStart = monthDate.startOf("month");
   const calendarStart = monthStart.minus({ days: monthStart.weekday - 1 });
   const calendarDays = Array.from({ length: 42 }, (_, i) => calendarStart.plus({ days: i }));
@@ -231,7 +232,7 @@ export function BookingWizard() {
                 <div>
                   <p className="mb-2 text-sm font-semibold text-brand-dark">
                     Verfügbare Zeiten am{" "}
-                    {DateTime.fromISO(selectedDate).setLocale("de-CH").toFormat("cccc, dd.MM.yyyy")}
+                    {DateTime.fromISO(selectedDate, { zone }).setLocale("de-CH").toFormat("cccc, dd.MM.yyyy")}
                   </p>
                   {selectedDaySlots.length === 0 ? (
                     <p className="text-sm text-brand-muted">Für dieses Datum gibt es keine Slots.</p>
@@ -261,7 +262,7 @@ export function BookingWizard() {
                         : "border-brand-border hover:border-brand-pink/50"
                     }`}
                   >
-                    {s.startAt.slice(11, 16)} Uhr
+                    {DateTime.fromISO(s.startAt, { zone: "utc" }).setZone(zone).toFormat("HH:mm")} Uhr
                   </button>
                 );
               })}

@@ -130,14 +130,11 @@ export async function adminSaveWeeklyAvailability(formData: FormData): Promise<v
     const starts = generateHourlyStarts(day, rule.startTime, rule.endTime);
     for (const slotStart of starts) {
       if (slotStart.toMillis() <= Date.now()) continue;
-      // Wandzeit direkt speichern (kein UTC-Versatz), damit Frontend exakt die
-      // eingegebene Uhrzeit anzeigen kann.
-      const startIso = slotStart.toFormat("yyyy-MM-dd'T'HH:mm:ss") + "+00:00";
+      const startIso = slotStart.toUTC().toISO()!;
       if (existingStartSet.has(startIso)) continue;
-      const endIso = slotStart.plus({ hours: 1 }).toFormat("yyyy-MM-dd'T'HH:mm:ss") + "+00:00";
       insertRows.push({
         start_at: startIso,
-        end_at: endIso,
+        end_at: slotStart.plus({ hours: 1 }).toUTC().toISO()!,
         booking_type: bookingType,
         generated_by_schedule: true,
       });
