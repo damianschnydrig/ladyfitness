@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts"
+    "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts",
+    "db:fix-slots": "tsx --env-file=.env scripts/fix-slots.ts"
   },
   "dependencies": {
     "@react-email/components": "^1.0.10",

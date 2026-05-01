@@ -33,7 +33,9 @@ function generateHourlyStarts(dayStart: DateTime, startHHmm: string, endHHmm: st
 
   const out: DateTime[] = [];
   let cursor = start;
-  while (cursor < end) {
+  // Ein Slot muss EXAKT 1 Stunde lang sein.
+  // Wenn Ende 11:30 ist, darf der letzte Slot um 10:30 starten.
+  while (cursor.plus({ hours: 1 }) <= end) {
     out.push(cursor);
     cursor = cursor.plus({ hours: 1 });
   }
