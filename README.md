@@ -60,3 +60,6 @@ Einmalig bei Altlasten: falls `public/studio-booking` existiert → `rm -rf publ
 - `public/` — statische Assets
 - `next.config.ts`, `server.js`, `package.json`
 - `supabase/` — Migrationen & Konfiguration
+
+---
+*Zuletzt aktualisiert: 01.05.2026 — Automatisches Deployment via Plesk Webhook eingerichtet.*
