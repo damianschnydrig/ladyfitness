@@ -5,6 +5,21 @@ function toDate(value: Date | string): Date {
   return new Date(value);
 }
 
+function toIso(value: Date | string): string {
+  if (typeof value === "string") return value;
+  return value.toISOString();
+}
+
+/** Gibt die ersten 5 Zeichen der Zeitkomponente eines ISO-Strings zurück (HH:MM). */
+function sliceTime(iso: string): string {
+  return iso.slice(11, 16);
+}
+
+/** Gibt den Datumsteil eines ISO-Strings zurück (yyyy-MM-dd). */
+function sliceDate(iso: string): string {
+  return iso.slice(0, 10);
+}
+
 /** Interpretiert Datum + Uhrzeit als Europe/Zurich (Wandzeit) und liefert UTC-Instant als Date. */
 export function parseZurichWallClock(date: string, timeHHmm: string): Date {
   const dt = DateTime.fromISO(`${date}T${timeHHmm}`, {
@@ -17,17 +32,17 @@ export function parseZurichWallClock(date: string, timeHHmm: string): Date {
 }
 
 export function formatZurichLong(date: Date | string): string {
-  return DateTime.fromJSDate(toDate(date), { zone: "utc" })
-    .setZone("Europe/Zurich")
-    .setLocale("de-CH")
-    .toFormat("cccc, d. MMMM yyyy · HH:mm 'Uhr'");
+  const iso = toIso(date);
+  const time = sliceTime(iso);
+  const dt = DateTime.fromISO(sliceDate(iso)).setLocale("de-CH");
+  return `${dt.toFormat("cccc, d. MMMM yyyy")} · ${time} Uhr`;
 }
 
 export function formatZurichShort(date: Date | string): string {
-  return DateTime.fromJSDate(toDate(date), { zone: "utc" })
-    .setZone("Europe/Zurich")
-    .setLocale("de-CH")
-    .toFormat("dd.MM.yyyy HH:mm");
+  const iso = toIso(date);
+  const [year, month, day] = sliceDate(iso).split("-");
+  const time = sliceTime(iso);
+  return `${day}.${month}.${year} ${time}`;
 }
 
 export function isPastSlot(endAt: Date | string): boolean {
@@ -35,7 +50,10 @@ export function isPastSlot(endAt: Date | string): boolean {
 }
 
 export function formatZurichTimeRange(start: Date | string, end: Date | string): string {
-  const a = DateTime.fromJSDate(toDate(start), { zone: "utc" }).setZone("Europe/Zurich");
-  const b = DateTime.fromJSDate(toDate(end), { zone: "utc" }).setZone("Europe/Zurich");
-  return `${a.setLocale("de-CH").toFormat("cccc, d. MMMM yyyy")}, ${a.toFormat("HH:mm")}–${b.toFormat("HH:mm")} Uhr`;
+  const startIso = toIso(start);
+  const endIso = toIso(end);
+  const startTime = sliceTime(startIso);
+  const endTime = sliceTime(endIso);
+  const dt = DateTime.fromISO(sliceDate(startIso)).setLocale("de-CH");
+  return `${dt.toFormat("cccc, d. MMMM yyyy")}, ${startTime}–${endTime} Uhr`;
 }
