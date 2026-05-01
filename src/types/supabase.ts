@@ -73,31 +73,34 @@ export type Database = {
         };
         Relationships: [];
       };
-      weekly_slot_rules: {
+      weekly_availability_intervals: {
         Row: {
           id: string;
           booking_type: Database["public"]["Enums"]["booking_type"];
-          weekday: number;
+          day_of_week: number;
           start_time: string;
           end_time: string;
+          slot_duration_minutes: number;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           booking_type: Database["public"]["Enums"]["booking_type"];
-          weekday: number;
+          day_of_week: number;
           start_time: string;
           end_time: string;
+          slot_duration_minutes?: number;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           booking_type?: Database["public"]["Enums"]["booking_type"];
-          weekday?: number;
+          day_of_week?: number;
           start_time?: string;
           end_time?: string;
+          slot_duration_minutes?: number;
           created_at?: string;
           updated_at?: string;
         };

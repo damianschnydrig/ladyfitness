@@ -14,7 +14,7 @@ export type AdminUser = Database["public"]["Tables"]["admin_users"]["Row"];
 export type TimeSlot = Database["public"]["Tables"]["time_slots"]["Row"];
 export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 export type ContactInquiry = Database["public"]["Tables"]["contact_inquiries"]["Row"];
-export type WeeklySlotRule = Database["public"]["Tables"]["weekly_slot_rules"]["Row"];
+export type WeeklyAvailabilityInterval = Database["public"]["Tables"]["weekly_availability_intervals"]["Row"];
 
 export type TimeSlotWithBooking = TimeSlot & {
   booking: Booking | null;

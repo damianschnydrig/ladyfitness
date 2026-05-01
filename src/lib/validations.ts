@@ -28,29 +28,65 @@ export const contactCreateSchema = z.object({
   website: z.string().max(0).optional(),
 });
 
-const hhmmStrict = z.string().regex(/^\d{2}:\d{2}$/, "Ungültige Uhrzeit");
+export const hhmmStrict = z.string().regex(/^\d{2}:\d{2}$/, "Ungültige Uhrzeit");
 
-export const weeklySlotRuleSchema = z
-  .object({
-    weekday: z.coerce.number().int().min(1).max(7),
-    startTime: hhmmStrict.optional(),
-    endTime: hhmmStrict.optional(),
-  })
-  .superRefine((value, ctx) => {
-    const hasStart = !!value.startTime;
-    const hasEnd = !!value.endTime;
-    if (hasStart !== hasEnd) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["startTime"],
-        message: "Start- und Endzeit müssen gemeinsam gesetzt werden.",
-      });
+export const weeklyAvailabilityIntervalRowSchema = z.object({
+  start: hhmmStrict,
+  end: hhmmStrict,
+  slotMinutes: z.coerce.number().int().min(15).max(24 * 60),
+});
+
+/** Payload: Schlüssel Luxon-Wochentag "1"…"7", Werte Listen von Intervallen */
+export const weeklyAvailabilityPayloadSchema = z
+  .record(z.string(), z.array(weeklyAvailabilityIntervalRowSchema))
+  .superRefine((record, ctx) => {
+    const allowed = new Set(["1", "2", "3", "4", "5", "6", "7"]);
+    for (const key of Object.keys(record)) {
+      if (!allowed.has(key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Ungültiger Wochentag: ${key}`,
+        });
+      }
     }
-    if (hasStart && hasEnd && value.startTime! >= value.endTime!) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["endTime"],
-        message: "Endzeit muss nach der Startzeit liegen.",
-      });
+
+    for (const key of allowed) {
+      const intervals = record[key] ?? [];
+      for (let i = 0; i < intervals.length; i++) {
+        const row = intervals[i];
+        if (row.start >= row.end) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Wochentag ${key}: Endzeit muss nach der Startzeit liegen.`,
+          });
+        }
+      }
+
+      const sorted = [...intervals].sort((a, b) => a.start.localeCompare(b.start));
+      for (let i = 0; i < sorted.length; i++) {
+        for (let j = i + 1; j < sorted.length; j++) {
+          if (intervalsOverlapHalfOpen(sorted[i].start, sorted[i].end, sorted[j].start, sorted[j].end)) {
+            ctx.addIssue({
+              code: "custom",
+              message: `Wochentag ${key}: Zeitintervalle dürfen sich nicht überlappen.`,
+            });
+            return;
+          }
+        }
+      }
     }
   });
+
+export function timeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Überlappung im Sinne von [start, end) — Grenzberührung ist erlaubt */
+export function intervalsOverlapHalfOpen(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  const as = timeToMinutes(aStart);
+  const ae = timeToMinutes(aEnd);
+  const bs = timeToMinutes(bStart);
+  const be = timeToMinutes(bEnd);
+  return as < be && bs < ae;
+}

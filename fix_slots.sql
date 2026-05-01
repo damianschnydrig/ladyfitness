@@ -1,4 +1,6 @@
 -- SQL-Cleanup und Slot-Regenerierung (Direkt für Supabase SQL Editor)
+-- Nutzt weekly_availability_intervals (Multi-Intervalle, slot_duration_minutes).
+
 -- 1. Lösche alle zukünftigen ungebuchten Slots
 DELETE FROM time_slots
 WHERE start_at > NOW()
@@ -15,27 +17,32 @@ DECLARE
     v_slot_end TIMESTAMP WITH TIME ZONE;
     v_start_time TIME;
     v_end_time TIME;
+    v_dow SMALLINT;
+    v_slot_dur INTERVAL;
 BEGIN
     FOR v_curr_date IN SELECT i::date FROM generate_series(v_start_date, v_end_date, '1 day'::interval) i LOOP
-        -- Hole Regeln für den aktuellen Wochentag (1=Monday, ..., 7=Sunday)
-        -- PostgreSQL extract(isodow) gibt 1-7 zurück
-        FOR v_rule IN SELECT * FROM weekly_slot_rules WHERE weekday = extract(isodow from v_curr_date) LOOP
+        -- JS-Konvention 0=So … 6=Sa (entspricht MOD(ISODOW, 7))
+        v_dow := (EXTRACT(ISODOW FROM v_curr_date)::int % 7);
+
+        FOR v_rule IN
+            SELECT *
+            FROM weekly_availability_intervals
+            WHERE day_of_week = v_dow
+        LOOP
             v_start_time := v_rule.start_time;
             v_end_time := v_rule.end_time;
-            
-            -- Generiere 1-Stunden Slots
+            v_slot_dur := make_interval(mins => v_rule.slot_duration_minutes);
+
             v_slot_start := v_curr_date + v_start_time;
-            WHILE (v_slot_start + INTERVAL '1 hour') <= (v_curr_date + v_end_time) LOOP
-                v_slot_end := v_slot_start + INTERVAL '1 hour';
-                
-                -- Nur in der Zukunft einfügen
+            WHILE (v_slot_start + v_slot_dur) <= (v_curr_date + v_end_time) LOOP
+                v_slot_end := v_slot_start + v_slot_dur;
+
                 IF v_slot_start > NOW() THEN
                     INSERT INTO time_slots (start_at, end_at, booking_type, generated_by_schedule)
-                    VALUES (v_slot_start, v_slot_end, v_rule.booking_type, true)
-                    ON CONFLICT DO NOTHING;
+                    VALUES (v_slot_start, v_slot_end, v_rule.booking_type, true);
                 END IF;
-                
-                v_slot_start := v_slot_start + INTERVAL '1 hour';
+
+                v_slot_start := v_slot_start + v_slot_dur;
             END WHILE;
         END LOOP;
     END LOOP;

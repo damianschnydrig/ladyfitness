@@ -8,7 +8,8 @@ import { formatZurichTimeRange } from "@/lib/datetime";
 import { sendBookingCancelledEmail } from "@/lib/mail";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import type { BookingStatus, ContactStatus, Database, TimeSlot } from "@/lib/supabase/types";
-import { weeklySlotRuleSchema } from "@/lib/validations";
+import { generateSlotStarts, luxonWeekdayToDbDayOfWeek, ZURICH_ZONE } from "@/lib/slot-generation";
+import { weeklyAvailabilityPayloadSchema } from "@/lib/validations";
 import { DateTime } from "luxon";
 
 async function requireAdmin() {
@@ -19,32 +20,15 @@ async function requireAdmin() {
   return session;
 }
 
-type WeeklyRuleInput = {
-  weekday: number;
-  startTime?: string;
-  endTime?: string;
-};
-
 export type SaveAvailabilityResult = {
   deletedCount: number;
   createdCount: number;
   sampleCreated: string[];
 };
 
-function generateHourlyStarts(dayStart: DateTime, startHHmm: string, endHHmm: string): DateTime[] {
-  const [startHour, startMinute] = startHHmm.split(":").map(Number);
-  const [endHour, endMinute] = endHHmm.split(":").map(Number);
-  const start = dayStart.set({ hour: startHour, minute: startMinute, second: 0, millisecond: 0 });
-  const end = dayStart.set({ hour: endHour, minute: endMinute, second: 0, millisecond: 0 });
-
-  const out: DateTime[] = [];
-  let cursor = start;
-  // Ein Slot = exakt 1 Stunde. Wenn Ende 11:30, letzter Start bei 10:30.
-  while (cursor.plus({ hours: 1 }) <= end) {
-    out.push(cursor);
-    cursor = cursor.plus({ hours: 1 });
-  }
-  return out;
+function normalizeHHmm(value: string): string {
+  const m = String(value).match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "";
 }
 
 export async function adminSaveWeeklyAvailability(
@@ -55,24 +39,22 @@ export async function adminSaveWeeklyAvailability(
   if (bookingTypeRaw !== "PROBETRAINING" && bookingTypeRaw !== "PERSONAL_TRAINING") {
     return { deletedCount: 0, createdCount: 0, sampleCreated: [] };
   }
-  const bookingType: Database["public"]["Tables"]["weekly_slot_rules"]["Insert"]["booking_type"] =
+  const bookingType: Database["public"]["Tables"]["weekly_availability_intervals"]["Insert"]["booking_type"] =
     bookingTypeRaw;
 
-  const rows: WeeklyRuleInput[] = [];
-  for (let weekday = 1; weekday <= 7; weekday++) {
-    rows.push({
-      weekday,
-      startTime: (formData.get(`day_${weekday}_start`) as string) || undefined,
-      endTime: (formData.get(`day_${weekday}_end`) as string) || undefined,
-    });
+  const intervalsRaw = formData.get("intervalsJson");
+  let parsedPayload: unknown;
+  try {
+    parsedPayload = typeof intervalsRaw === "string" ? JSON.parse(intervalsRaw) : null;
+  } catch {
+    console.warn("[adminSaveWeeklyAvailability] Ungültiges JSON");
+    return { deletedCount: 0, createdCount: 0, sampleCreated: [] };
   }
 
-  for (const row of rows) {
-    const parsed = weeklySlotRuleSchema.safeParse(row);
-    if (!parsed.success) {
-      console.warn("[adminSaveWeeklyAvailability] Validierungsfehler", parsed.error.flatten());
-      return { deletedCount: 0, createdCount: 0, sampleCreated: [] };
-    }
+  const validated = weeklyAvailabilityPayloadSchema.safeParse(parsedPayload);
+  if (!validated.success) {
+    console.warn("[adminSaveWeeklyAvailability] Validierungsfehler", validated.error.flatten());
+    return { deletedCount: 0, createdCount: 0, sampleCreated: [] };
   }
 
   const supabase = createClient<Database>(
@@ -80,19 +62,26 @@ export async function adminSaveWeeklyAvailability(
     process.env.SUPABASE_SERVICE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
-  const activeRules = rows.filter((r) => r.startTime && r.endTime);
 
-  // --- Wochenregeln aktualisieren ---
-  await supabase.from("weekly_slot_rules").delete().eq("booking_type", bookingType);
-  if (activeRules.length > 0) {
-    await supabase.from("weekly_slot_rules").insert(
-      activeRules.map((r) => ({
+  type IntervalInsert = Database["public"]["Tables"]["weekly_availability_intervals"]["Insert"];
+  const inserts: IntervalInsert[] = [];
+  for (let luxonWd = 1; luxonWd <= 7; luxonWd++) {
+    const list = validated.data[String(luxonWd)] ?? [];
+    const dow = luxonWeekdayToDbDayOfWeek(luxonWd);
+    for (const row of list) {
+      inserts.push({
         booking_type: bookingType,
-        weekday: r.weekday,
-        start_time: r.startTime!,
-        end_time: r.endTime!,
-      }))
-    );
+        day_of_week: dow,
+        start_time: `${normalizeHHmm(row.start)}:00`,
+        end_time: `${normalizeHHmm(row.end)}:00`,
+        slot_duration_minutes: row.slotMinutes,
+      });
+    }
+  }
+
+  await supabase.from("weekly_availability_intervals").delete().eq("booking_type", bookingType);
+  if (inserts.length > 0) {
+    await supabase.from("weekly_availability_intervals").insert(inserts);
   }
 
   // --- Zukünftige ungebuchte Slots dieses Typs löschen ---
@@ -122,9 +111,8 @@ export async function adminSaveWeeklyAvailability(
     }
   }
 
-  // --- Neue Slots generieren (16 Wochen Horizont) ---
-  const zone = "Europe/Zurich";
-  const today = DateTime.now().setZone(zone).startOf("day");
+  // --- Neue Slots generieren (16 Wochen Horizont, Europe/Zurich) ---
+  const today = DateTime.now().setZone(ZURICH_ZONE).startOf("day");
   const horizonEnd = today.plus({ weeks: 16 });
 
   // Bestehende Starts im Zeitraum laden (verbleibende gebuchte Slots)
@@ -145,22 +133,35 @@ export async function adminSaveWeeklyAvailability(
     generated_by_schedule: boolean;
   }> = [];
 
+  const intervalsByDow = new Map<number, IntervalInsert[]>();
+  for (const row of inserts) {
+    const dow = row.day_of_week as number;
+    const arr = intervalsByDow.get(dow) ?? [];
+    arr.push(row);
+    intervalsByDow.set(dow, arr);
+  }
+
   for (let day = today; day < horizonEnd; day = day.plus({ days: 1 })) {
-    const weekday = day.weekday; // 1=Mo…7=So
-    const rule = activeRules.find((r) => r.weekday === weekday);
-    if (!rule || !rule.startTime || !rule.endTime) continue;
-    const starts = generateHourlyStarts(day, rule.startTime, rule.endTime);
-    for (const slotStart of starts) {
-      if (slotStart.toMillis() <= Date.now()) continue;
-      const startIso = slotStart.toUTC().toISO()!;
-      if (existingStartSet.has(startIso)) continue;
-      insertRows.push({
-        start_at: startIso,
-        end_at: slotStart.plus({ hours: 1 }).toUTC().toISO()!,
-        booking_type: bookingType,
-        generated_by_schedule: true,
-        // available nicht gesetzt → DB-Default TRUE (nach Migration 004)
-      });
+    const dow = luxonWeekdayToDbDayOfWeek(day.weekday);
+    const dayIntervals = intervalsByDow.get(dow);
+    if (!dayIntervals?.length) continue;
+
+    for (const interval of dayIntervals) {
+      const startHHmm = normalizeHHmm(String(interval.start_time).slice(0, 8));
+      const endHHmm = normalizeHHmm(String(interval.end_time).slice(0, 8));
+      const duration = interval.slot_duration_minutes ?? 60;
+      const starts = generateSlotStarts(day, startHHmm, endHHmm, duration);
+      for (const slotStart of starts) {
+        if (slotStart.toMillis() <= Date.now()) continue;
+        const startIso = slotStart.toUTC().toISO()!;
+        if (existingStartSet.has(startIso)) continue;
+        insertRows.push({
+          start_at: startIso,
+          end_at: slotStart.plus({ minutes: duration }).toUTC().toISO()!,
+          booking_type: bookingType,
+          generated_by_schedule: true,
+        });
+      }
     }
   }
 
