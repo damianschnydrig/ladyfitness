@@ -51,9 +51,6 @@ yarn-error.log*
 *.zip
 /dist/
 
-# Verhindert versehentliche „Spiegel“-Deploys unter public/
-/public/studio-booking/
-
 # Supabase CLI
 /supabase/.temp/
 

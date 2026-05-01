@@ -1,17 +1,17 @@
-/**
- * Plesk / Node: Anwendungsstartdatei = diese Datei (server.js).
- *
- * Startet die App im normalen Next.js-Produktionsmodus (`next start`).
- * Voraussetzung: `npm run build` (erzeugt `.next/`).
- */
-const { spawnSync } = require("child_process");
-const path = require("path");
+const { createServer } = require("http");
+const { parse } = require("url");
+const next = require("next");
 
-const nextBin = path.join(__dirname, "node_modules", "next", "dist", "bin", "next");
+const dev = process.env.NODE_ENV !== "production";
+const app = next({ dev });
+const handle = app.getRequestHandler();
+const port = process.env.PORT || 3000;
 
-const result = spawnSync(process.execPath, [nextBin, "start", "-p", process.env.PORT || "3000"], {
-  stdio: "inherit",
-  env: process.env,
+app.prepare().then(() => {
+  createServer((req, res) => {
+    const parsedUrl = parse(req.url, true);
+    handle(req, res, parsedUrl);
+  }).listen(port, () => {
+    console.log(`> Ready on port ${port}`);
+  });
 });
-
-process.exit(result.status ?? 1);

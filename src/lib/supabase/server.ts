@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/types";
+import type { Database } from "@/types/supabase";
 
 const globalForSupabase = globalThis as unknown as {
   supabaseServer: SupabaseClient<Database> | undefined;
@@ -19,7 +19,7 @@ export function getSupabaseServer() {
           autoRefreshToken: false,
           persistSession: false,
         },
-      }
+      },
     );
   }
   return globalForSupabase.supabaseServer;

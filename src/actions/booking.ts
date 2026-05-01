@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { formatZurichTimeRange } from "@/lib/datetime";
 import { sendBookingEmails } from "@/lib/mail";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import type { BookingType } from "@/lib/supabase/types";
 import { bookingCreateSchema } from "@/lib/validations";
 
 export type BookingActionResult =
@@ -43,10 +42,9 @@ export async function createBooking(
 
   try {
     // Atomare Buchung via PostgreSQL-Funktion (verhindert Race Conditions)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: result, error } = await (supabase as any).rpc("create_booking_atomic", {
+    const { data: result, error } = await supabase.rpc("create_booking_atomic", {
       p_slot_id: data.slotId,
-      p_type: data.type as BookingType,
+      p_type: data.type,
       p_first_name: data.firstName,
       p_last_name: data.lastName,
       p_email: data.email.trim().toLowerCase(),
@@ -63,6 +61,9 @@ export async function createBooking(
 
     if (!row || row.error_message) {
       return { ok: false, message: row?.error_message ?? "Unbekannter Fehler." };
+    }
+    if (!row.booking_id) {
+      return { ok: false, message: "Unbekannter Fehler." };
     }
 
     // Slot-Daten für E-Mail laden

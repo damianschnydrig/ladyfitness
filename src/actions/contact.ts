@@ -130,8 +130,7 @@ export async function createContactInquiry(
   // Dann in der Datenbank speichern (optional — kein Showstopper)
   const supabase = getSupabaseServer();
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: row, error } = await (supabase as any)
+    const { data: row, error } = await supabase
       .from("contact_inquiries")
       .insert({
         first_name: d.firstName,
