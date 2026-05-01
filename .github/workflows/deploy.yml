@@ -1,4 +1,4 @@
-name: Production Deployment (Plesk)
+name: Deploy via Plesk Webhook
 
 on:
   push:
@@ -9,21 +9,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Wait for Plesk to pull
+        # Plesk webhook (server4.hispeed16.com) zieht automatisch den Code
+        # via Deploy Key. Wir warten kurz, dann triggern wir den Passenger-Restart.
+        run: sleep 20
 
-      - name: Executing remote ssh commands
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script: |
-            cd httpdocs
-            git pull origin main
-            npm ci
-            npm run build
-            # Passenger Restart Trigger
-            mkdir -p tmp
-            touch tmp/restart.txt
+      - name: Trigger Passenger restart + auto-build
+        # Berührt tmp/restart.txt → Passenger startet neu → server.js erkennt
+        # FETCH_HEAD > BUILD_ID → führt npm run build aus → neue Version live.
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST https://ladyfitness-bremgarten.ch/api/internal/redeploy \
+            -H "Content-Type: application/json" \
+            -d "{\"secret\": \"${{ secrets.DEPLOY_SECRET }}\"}")
+          echo "Redeploy response: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Warnung: Redeploy-Endpoint nicht erreichbar (HTTP $STATUS). Evtl. manuell restart.txt berühren."
+            exit 1
+          fi
