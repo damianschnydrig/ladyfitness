@@ -62,4 +62,4 @@ Einmalig bei Altlasten: falls `public/studio-booking` existiert → `rm -rf publ
 - `supabase/` — Migrationen & Konfiguration
 
 ---
-*Zuletzt aktualisiert: 01.05.2026 — Automatisches Deployment via Plesk Webhook eingerichtet.*
+*Zuletzt aktualisiert: 01.05.2026 — Automatisches Deployment via Plesk Webhook eingerichtet (Test 2: Auto-Trigger).*
