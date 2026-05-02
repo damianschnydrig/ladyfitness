@@ -21,20 +21,51 @@ export async function adminLogin(
   }
 
   let user;
-  try {
-    const supabase = getSupabaseServer();
-    const { data } = await supabase
-      .from("admin_users")
-      .select("id, email, password_hash")
-      .eq("email", email)
-      .single();
-    user = data as { id: string; email: string; password_hash: string } | null;
-  } catch {
-    return {
-      ok: false,
-      message:
-        "Keine Verbindung zur Datenbank. Prüfen Sie NEXT_PUBLIC_SUPABASE_URL und SUPABASE_SERVICE_KEY in .env.",
-    };
+  // DEV-ONLY fallback: if DEV_USE_LOCAL_ADMIN=true and dev_data/admins.json exists, use that
+  if (!user && process.env.DEV_USE_LOCAL_ADMIN === "true") {
+    try {
+      const fs = await import("fs/promises");
+      const path = require("path");
+      const file = path.join(process.cwd(), "dev_data", "admins.json");
+      const txt = await fs.readFile(file, "utf8").catch(() => null);
+      if (txt) {
+        const arr = JSON.parse(txt);
+        const found = arr.find((r: { email: string }) => r.email === email);
+        if (found) {
+          user = {
+            id: found.id,
+            email: found.email,
+            password_hash: found.password_hash,
+          };
+        }
+      }
+    } catch (e) {
+      /* fall through */
+    }
+  }
+  if (!user) {
+    try {
+      const supabase = getSupabaseServer();
+      const { data, error } = await supabase
+        .from("admin_users")
+        .select("id, email, password_hash")
+        .eq("email", email)
+        .maybeSingle();
+      if (error) {
+        return {
+          ok: false,
+          message:
+            "Datenbankfehler beim Admin-Lookup. Prüfen Sie NEXT_PUBLIC_SUPABASE_URL und SUPABASE_SERVICE_KEY in .env.",
+        };
+      }
+      user = data as { id: string; email: string; password_hash: string } | null;
+    } catch {
+      return {
+        ok: false,
+        message:
+          "Keine Verbindung zur Datenbank. Prüfen Sie NEXT_PUBLIC_SUPABASE_URL und SUPABASE_SERVICE_KEY in .env.",
+      };
+    }
   }
 
   if (!user) {

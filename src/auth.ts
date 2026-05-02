@@ -36,20 +36,58 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const bcrypt = await import("bcryptjs");
 
         const email = parsed.data.email.toLowerCase();
-        const supabase = getSupabaseServer();
 
-        const { data: rawUser } = await supabase
-          .from("admin_users")
-          .select("id, email, password_hash, name")
-          .eq("email", email)
-          .single();
-
-        const user = rawUser as {
+        let user: {
           id: string;
           email: string;
           password_hash: string;
           name: string | null;
-        } | null;
+        } | null = null;
+
+        if (process.env.DEV_USE_LOCAL_ADMIN === "true") {
+          try {
+            const fs = await import("fs/promises");
+            const pathMod = await import("path");
+            const file = pathMod.join(process.cwd(), "dev_data", "admins.json");
+            const txt = await fs.readFile(file, "utf8").catch(() => null);
+            if (txt) {
+              const arr = JSON.parse(txt) as {
+                id: string;
+                email: string;
+                password_hash: string;
+                name?: string;
+              }[];
+              const found = arr.find((r) => r.email === email);
+              if (found) {
+                user = {
+                  id: found.id,
+                  email: found.email,
+                  password_hash: found.password_hash,
+                  name: found.name ?? null,
+                };
+              }
+            }
+          } catch {
+            /* fall through */
+          }
+        }
+
+        if (!user) {
+          const supabase = getSupabaseServer();
+
+          const { data: rawUser } = await supabase
+            .from("admin_users")
+            .select("id, email, password_hash, name")
+            .eq("email", email)
+            .single();
+
+          user = rawUser as {
+            id: string;
+            email: string;
+            password_hash: string;
+            name: string | null;
+          } | null;
+        }
 
         if (!user) return null;
 

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "dev:seed-admin": "node scripts/ensure_dev_admin.js",
     "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts",
     "db:fix-slots": "tsx --env-file=.env scripts/fix-slots.ts"
   },
@@ -33,6 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.15",
+    "minimist": "^1.2.8",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.4",

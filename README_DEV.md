@@ -1,0 +1,1 @@
+Dev: setze DEV_USE_LOCAL_ADMIN="true" in .env oder export DEV_USE_LOCAL_ADMIN=true; dann npm run dev:seed-admin; danach npm run dev. Test: curl -i -X POST http://localhost:3000/api/dev/login -H "Content-Type: application/json" -d '{"email":"<ADMIN_SEED_EMAIL>","password":"<ADMIN_SEED_PASSWORD>"}'
