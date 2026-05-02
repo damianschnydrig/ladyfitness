@@ -4,7 +4,6 @@ import { signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import { getSupabaseServer } from "@/lib/supabase/server";
 
 export type AdminLoginState = { ok: false; message: string } | null;
 
@@ -20,24 +19,23 @@ export async function adminLogin(
     return { ok: false, message: "Bitte E-Mail und Passwort eingeben." };
   }
 
-  let user;
-  // DEV-ONLY fallback: if DEV_USE_LOCAL_ADMIN=true and dev_data/admins.json exists, use that
-  if (!user && process.env.DEV_USE_LOCAL_ADMIN === "true") {
+  let user: { id: string; email: string; password_hash: string } | null = null;
+  // DEV-ONLY fallback
+  if (process.env.DEV_USE_LOCAL_ADMIN === "true") {
     try {
-      const fs = await import("fs/promises");
-      const path = require("path");
-      const file = path.join(process.cwd(), "dev_data", "admins.json");
-      const txt = await fs.readFile(file, "utf8").catch(() => null);
+      const fsp = await import("fs/promises");
+      const pathMod = require("path");
+      const file = pathMod.join(process.cwd(), "dev_data", "admins.json");
+      const txt = await fsp.readFile(file, "utf8").catch(() => null);
       if (txt) {
-        const arr = JSON.parse(txt);
-        const found = arr.find((r: { email: string }) => r.email === email);
-        if (found) {
+        const arr = JSON.parse(txt) as { id: string; email: string; password_hash: string }[];
+        const found = arr.find((r) => r.email === email);
+        if (found)
           user = {
             id: found.id,
             email: found.email,
             password_hash: found.password_hash,
           };
-        }
       }
     } catch (e) {
       /* fall through */
@@ -45,6 +43,7 @@ export async function adminLogin(
   }
   if (!user) {
     try {
+      const { getSupabaseServer } = await import("@/lib/supabase/server");
       const supabase = getSupabaseServer();
       const { data, error } = await supabase
         .from("admin_users")

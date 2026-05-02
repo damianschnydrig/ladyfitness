@@ -32,7 +32,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
         if (!parsed.success) return null;
 
-        const { getSupabaseServer } = await import("@/lib/supabase/server");
         const bcrypt = await import("bcryptjs");
 
         const email = parsed.data.email.toLowerCase();
@@ -46,10 +45,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (process.env.DEV_USE_LOCAL_ADMIN === "true") {
           try {
-            const fs = await import("fs/promises");
-            const pathMod = await import("path");
+            const fsp = await import("fs/promises");
+            const pathMod = require("path");
             const file = pathMod.join(process.cwd(), "dev_data", "admins.json");
-            const txt = await fs.readFile(file, "utf8").catch(() => null);
+            const txt = await fsp.readFile(file, "utf8").catch(() => null);
             if (txt) {
               const arr = JSON.parse(txt) as {
                 id: string;
@@ -73,6 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (!user) {
+          const { getSupabaseServer } = await import("@/lib/supabase/server");
           const supabase = getSupabaseServer();
 
           const { data: rawUser } = await supabase
