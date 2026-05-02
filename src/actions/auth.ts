@@ -29,7 +29,10 @@ export async function adminLogin(
       const txt = await fsp.readFile(file, "utf8").catch(() => null);
       if (txt) {
         const arr = JSON.parse(txt) as { id: string; email: string; password_hash: string }[];
-        const found = arr.find((r) => r.email === email);
+        const found = arr.find(
+          (r) => r.email.toLowerCase() === email.toLowerCase(),
+        );
+        console.log("DEV_AUTH_CHECK", email, !!found);
         if (found)
           user = {
             id: found.id,

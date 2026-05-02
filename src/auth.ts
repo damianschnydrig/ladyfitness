@@ -57,7 +57,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password_hash: string;
                 name?: string;
               }[];
-              const found = arr.find((r) => r.email === email);
+              const found = arr.find(
+                (r) => r.email.toLowerCase() === email.toLowerCase(),
+              );
+              console.log("DEV_AUTH_CHECK", email, !!found);
               if (found) {
                 user = {
                   id: found.id,

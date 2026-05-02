@@ -10,13 +10,15 @@ import bcrypt from "bcryptjs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-const email = process.env.ADMIN_SEED_EMAIL;
+const email =
+  process.env.ADMIN_SEED_EMAIL?.trim() ||
+  process.env.OPERATOR_EMAIL?.trim().toLowerCase();
 const password = process.env.ADMIN_SEED_PASSWORD;
 const name = process.env.ADMIN_SEED_NAME ?? "Admin";
 
 if (!supabaseUrl || !serviceKey || !email || !password) {
   console.error(
-    "❌ Fehlende Env-Variablen: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY, ADMIN_SEED_EMAIL, ADMIN_SEED_PASSWORD"
+    "❌ Fehlende Env-Variablen: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY, und ADMIN_SEED_PASSWORD (ADMIN_SEED_EMAIL oder OPERATOR_EMAIL für E-Mail)"
   );
   process.exit(1);
 }
