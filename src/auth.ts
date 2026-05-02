@@ -1,3 +1,4 @@
+import path from "node:path";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
@@ -47,8 +48,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (process.env.DEV_USE_LOCAL_ADMIN === "true") {
           try {
             const fsp = await import("fs/promises");
-            const pathMod = require("path");
-            const file = pathMod.join(process.cwd(), "dev_data", "admins.json");
+            const file = path.join(process.cwd(), "dev_data", "admins.json");
             const txt = await fsp.readFile(file, "utf8").catch(() => null);
             if (txt) {
               const arr = JSON.parse(txt) as {

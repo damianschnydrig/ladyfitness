@@ -9,7 +9,8 @@
     "lint": "next lint",
     "dev:seed-admin": "node scripts/ensure_dev_admin.js",
     "db:seed-admin": "tsx --env-file=.env scripts/seed-admin.ts",
-    "db:fix-slots": "tsx --env-file=.env scripts/fix-slots.ts"
+    "db:fix-slots": "tsx --env-file=.env scripts/fix-slots.ts",
+    "test:api-availability": "tsx --env-file=.env scripts/run-api-availability-tests.ts"
   },
   "dependencies": {
     "@react-email/components": "^1.0.10",

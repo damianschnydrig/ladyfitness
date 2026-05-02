@@ -73,6 +73,10 @@ function validateClient(map: DayMap): string | null {
         if (s >= e) {
           return `${day.label}: Die Endzeit muss nach der Startzeit liegen (24h-Format).`;
         }
+        const sm = r.slotMinutes;
+        if (!Number.isFinite(sm) || sm < 15 || sm > 480 || sm % 15 !== 0) {
+          return `${day.label}: Slot-Dauer 15–480 Minuten, in 15er-Schritten.`;
+        }
       }
     }
 
@@ -121,6 +125,7 @@ export function AdminWeeklyAvailabilityEditor({ initialProbe, initialPt }: Props
   const [type, setType] = useState<BookingType>("PROBETRAINING");
   const [pending, startTransition] = useTransition();
   const [clientError, setClientError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [values, setValues] = useState({
     PROBETRAINING: cloneDayMap(initialProbe),
     PERSONAL_TRAINING: cloneDayMap(initialPt),
@@ -180,20 +185,34 @@ export function AdminWeeklyAvailabilityEditor({ initialProbe, initialPt }: Props
           {clientError}
         </p>
       ) : null}
+      {serverError ? (
+        <p className="mt-3 border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800" role="alert">
+          {serverError}
+        </p>
+      ) : null}
 
       <form
         className="mt-5 space-y-4"
         action={(formData) =>
           startTransition(async () => {
+            setServerError(null);
             formData.set("bookingType", type);
-            formData.set("intervalsJson", JSON.stringify(buildPayload(values[type])));
-            await adminSaveWeeklyAvailability(formData);
+            const payload = buildPayload(values[type]);
+            console.log("SAVE_PAYLOAD", payload);
+            formData.set("intervalsJson", JSON.stringify(payload));
+            const result = await adminSaveWeeklyAvailability(formData);
+            console.log("DB_RESULT", result);
+            if (!result.ok) {
+              setServerError(result.message);
+              return;
+            }
             router.refresh();
           })
         }
         onSubmit={(e) => {
           const err = validateClient(values[type]);
           setClientError(err);
+          setServerError(null);
           if (err) e.preventDefault();
         }}
       >
@@ -244,6 +263,7 @@ export function AdminWeeklyAvailabilityEditor({ initialProbe, initialPt }: Props
                         <input
                           type="time"
                           step={60}
+                          lang="de-CH"
                           value={row.start}
                           onChange={(e) =>
                             setValues((p) => {
@@ -262,6 +282,7 @@ export function AdminWeeklyAvailabilityEditor({ initialProbe, initialPt }: Props
                         <input
                           type="time"
                           step={60}
+                          lang="de-CH"
                           value={row.end}
                           onChange={(e) =>
                             setValues((p) => {

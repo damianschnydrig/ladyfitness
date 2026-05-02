@@ -33,7 +33,9 @@ export const hhmmStrict = z.string().regex(/^\d{2}:\d{2}$/, "Ungültige Uhrzeit"
 export const weeklyAvailabilityIntervalRowSchema = z.object({
   start: hhmmStrict,
   end: hhmmStrict,
-  slotMinutes: z.coerce.number().int().min(15).max(24 * 60),
+  slotMinutes: z.coerce.number().int().min(15).max(480).refine((n) => n % 15 === 0, {
+    message: "Slot-Dauer in 15-Minuten-Schritten.",
+  }),
 });
 
 /** Payload: Schlüssel Luxon-Wochentag "1"…"7", Werte Listen von Intervallen */
@@ -63,14 +65,16 @@ export const weeklyAvailabilityPayloadSchema = z
       }
 
       const sorted = [...intervals].sort((a, b) => a.start.localeCompare(b.start));
-      for (let i = 0; i < sorted.length; i++) {
+      let overlapFound = false;
+      for (let i = 0; i < sorted.length && !overlapFound; i++) {
         for (let j = i + 1; j < sorted.length; j++) {
           if (intervalsOverlapHalfOpen(sorted[i].start, sorted[i].end, sorted[j].start, sorted[j].end)) {
             ctx.addIssue({
               code: "custom",
               message: `Wochentag ${key}: Zeitintervalle dürfen sich nicht überlappen.`,
             });
-            return;
+            overlapFound = true;
+            break;
           }
         }
       }

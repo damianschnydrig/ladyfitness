@@ -1,5 +1,6 @@
 "use server";
 
+import path from "node:path";
 import { signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
@@ -24,8 +25,7 @@ export async function adminLogin(
   if (process.env.DEV_USE_LOCAL_ADMIN === "true") {
     try {
       const fsp = await import("fs/promises");
-      const pathMod = require("path");
-      const file = pathMod.join(process.cwd(), "dev_data", "admins.json");
+      const file = path.join(process.cwd(), "dev_data", "admins.json");
       const txt = await fsp.readFile(file, "utf8").catch(() => null);
       if (txt) {
         const arr = JSON.parse(txt) as { id: string; email: string; password_hash: string }[];
@@ -40,7 +40,7 @@ export async function adminLogin(
             password_hash: found.password_hash,
           };
       }
-    } catch (e) {
+    } catch {
       /* fall through */
     }
   }

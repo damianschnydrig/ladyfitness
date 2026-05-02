@@ -23,7 +23,7 @@ export function BookingWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [type, setType] = useState<BookingType | null>(() => {
-    const t = searchParams.get("type");
+    const t = searchParams?.get("type");
     if (t === "PROBETRAINING" || t === "PERSONAL_TRAINING") return t as BookingType;
     return null;
   });
@@ -47,12 +47,13 @@ export function BookingWizard() {
     }
     let cancelled = false;
     setSlotsLoading(true);
-    fetch(`/api/public/slots?type=${type}`)
+    fetch(`/api/public/slots?type=${type}`, { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("Slots");
         return r.json();
       })
       .then((data: SlotDto[]) => {
+        console.log("SLOTS_GENERATED", data);
         if (!cancelled) {
           setSlots(data);
           setSlotId(null);
@@ -296,9 +297,13 @@ export function BookingWizard() {
                     // Slots neu laden
                     if (type) {
                       setSlotsLoading(true);
-                      fetch(`/api/public/slots?type=${type}`)
+                      fetch(`/api/public/slots?type=${type}`, { cache: "no-store" })
                         .then((r) => r.json())
-                        .then((data) => { setSlots(data); setSlotsLoading(false); })
+                        .then((data) => {
+                          console.log("SLOTS_GENERATED", data);
+                          setSlots(data);
+                          setSlotsLoading(false);
+                        })
                         .catch(() => setSlotsLoading(false));
                     }
                   }}
