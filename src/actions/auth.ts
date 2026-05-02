@@ -4,6 +4,7 @@ import { signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 export type AdminLoginState = { ok: false; message: string } | null;
 
@@ -20,7 +21,6 @@ export async function adminLogin(
   }
 
   let user: { id: string; email: string; password_hash: string } | null = null;
-  // DEV-ONLY fallback
   if (process.env.DEV_USE_LOCAL_ADMIN === "true") {
     try {
       const fsp = await import("fs/promises");
@@ -41,9 +41,8 @@ export async function adminLogin(
       /* fall through */
     }
   }
-  if (!user) {
+  if (!user && process.env.DEV_USE_LOCAL_ADMIN !== "true") {
     try {
-      const { getSupabaseServer } = await import("@/lib/supabase/server");
       const supabase = getSupabaseServer();
       const { data, error } = await supabase
         .from("admin_users")
